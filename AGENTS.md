@@ -25,7 +25,7 @@ It writes the event to the `outbox` table inside the caller's transaction. It kn
 ```
 outbox-publisher/
 ├── outbox-core         interface Outbox, record OutboxEvent     (JPMS)
-├── outbox-jdbc         JdbcOutbox implements Outbox             (JPMS, provides via ServiceLoader)
+├── outbox-jdbc         JdbcOutbox implements Outbox             (JPMS; ServiceLoader internally for OutboxDialectProvider)
 ├── outbox-spring       Spring Boot autoconfig                   (automatic module)
 ├── outbox-micrometer   MeteredOutbox decorator                  (JPMS, optional)
 ├── outbox-schema       Example SQL (no Flyway/Liquibase bundled) (resources only)
