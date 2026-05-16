@@ -11,7 +11,6 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "outbox-publisher",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {

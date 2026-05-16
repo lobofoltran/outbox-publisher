@@ -21,7 +21,7 @@ import java.io.Serial;
  * undefined table {@code 42P01} on PostgreSQL) and {@code 3D} (invalid catalog name) as
  * configuration failures.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public final class OutboxConfigurationException extends OutboxException {
 
@@ -31,7 +31,7 @@ public final class OutboxConfigurationException extends OutboxException {
      * Creates a new {@code OutboxConfigurationException} with the given message.
      *
      * @param message human-readable description of the failure.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public OutboxConfigurationException(String message) {
         super(message);
@@ -42,7 +42,7 @@ public final class OutboxConfigurationException extends OutboxException {
      *
      * @param message human-readable description of the failure.
      * @param cause the underlying cause.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public OutboxConfigurationException(String message, Throwable cause) {
         super(message, cause);

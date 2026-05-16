@@ -100,7 +100,7 @@
         <google-java-format.version>1.27.0</google-java-format.version>
         <flatten-maven-plugin.version>1.7.0</flatten-maven-plugin.version>
         <pitest-maven.version>1.23.1</pitest-maven.version>
-        <pitest-junit5-plugin.version>1.2.1</pitest-junit5-plugin.version>
+        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
         <!-- Default PIT floor; CI may override via -Dmutation.threshold=... See AGENTS.md per-module targets. -->
         <mutation.threshold>0</mutation.threshold>
         <failWhenNoMutations>false</failWhenNoMutations>
@@ -594,6 +594,23 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <source>${java.version}</source>
+                            <doctitle>outbox-publisher ${project.version} API</doctitle>
+                            <windowtitle>outbox-publisher ${project.version} API</windowtitle>
+                            <notimestamp>true</notimestamp>
+                            <quiet>true</quiet>
+                            <failOnWarnings>false</failOnWarnings>
+                            <detectJavaApiLink>false</detectJavaApiLink>
+                            <detectLinks>false</detectLinks>
+                            <detectOfflineLinks>false</detectOfflineLinks>
+                            <links>
+                                <link>https://docs.oracle.com/en/java/javase/25/docs/api/</link>
+                                <link>https://docs.spring.io/spring-boot/api/java/</link>
+                                <link>https://javadoc.io/doc/io.micrometer/micrometer-core/1.16.0/</link>
+                                <link>https://javadoc.io/doc/io.opentelemetry/opentelemetry-api/latest/</link>
+                            </links>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>

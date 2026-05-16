@@ -18,12 +18,19 @@ import java.util.regex.Pattern;
  *
  * @param schema optional schema qualifier; may be {@code null}.
  * @param tableName required, validated against the identifier pattern.
- * @since 0.2.0
+ * @since 0.1.0
  */
 public record TableRef(String schema, String tableName) {
 
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
+    /**
+     * Canonical compact constructor: validates {@code tableName} (required) and {@code schema}
+     * (optional) against the strict identifier pattern.
+     *
+     * @throws NullPointerException if {@code tableName} is {@code null}.
+     * @throws IllegalArgumentException if either identifier does not match the allowlist pattern.
+     */
     public TableRef {
         Objects.requireNonNull(tableName, "tableName must not be null");
         requireIdentifier(tableName, "tableName");
@@ -36,7 +43,7 @@ public record TableRef(String schema, String tableName) {
      * Returns the qualified table reference: {@code schema.tableName} or just {@code tableName}.
      *
      * @return the qualified table reference.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public String qualified() {
         return schema != null ? schema + "." + tableName : tableName;

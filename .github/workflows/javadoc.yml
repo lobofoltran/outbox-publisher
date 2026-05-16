@@ -1,0 +1,49 @@
+name: javadoc
+
+# Publishes the aggregated Javadoc site to GitHub Pages after every tagged
+# release. Runs only when the `release` workflow for the same tag finishes
+# successfully, so a failed deploy can never overwrite Pages with stale docs.
+on:
+  workflow_run:
+    workflows: ["release"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    # Skip when the upstream release workflow failed or was cancelled, and
+    # only react to tag pushes matching v*.*.* (the same trigger release.yml uses).
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Aggregate Javadoc
+        run: ./mvnw -B -ntp -Prelease -DskipTests javadoc:aggregate
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: target/site/apidocs
+          publish_branch: gh-pages
+          keep_files: false
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: "docs: publish Javadoc for ${{ github.event.workflow_run.head_branch }}"

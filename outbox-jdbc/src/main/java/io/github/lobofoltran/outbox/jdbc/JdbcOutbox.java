@@ -23,6 +23,7 @@ import io.github.lobofoltran.outbox.jdbc.internal.DialectAutoDetector;
 import io.github.lobofoltran.outbox.jdbc.internal.HeadersJsonWriter;
 import io.github.lobofoltran.outbox.jdbc.internal.UuidV7Generator;
 import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialect;
+import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialectProvider;
 import io.github.lobofoltran.outbox.jdbc.spi.TableRef;
 
 import org.slf4j.Logger;
@@ -36,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * JSON column binding, timestamp binding, SQLState classification) is delegated to an {@link
  * OutboxDialect}. The dialect is either supplied explicitly via {@link
  * Builder#dialect(OutboxDialect)} or auto-detected on first publish through {@link
- * OutboxDialectProvider} (registered via {@link ServiceLoader}).
+ * OutboxDialectProvider} (registered via {@link java.util.ServiceLoader}).
  *
  * <p>The class is thread-safe; the dialect is resolved lazily under a double-checked volatile field
  * so the hot path stays lock-free after the first publish. Every publish/publishAll call uses a
@@ -185,7 +186,8 @@ public final class JdbcOutbox implements Outbox {
      *   <li>{@code schema} = unset (table is referenced unqualified)
      *   <li>{@code clock} = {@link Clock#systemUTC()}
      *   <li>{@code idGenerator} = {@link UuidV7Generator}
-     *   <li>{@code dialect} = unset; resolved lazily on first publish via {@link ServiceLoader}
+     *   <li>{@code dialect} = unset; resolved lazily on first publish via {@link
+     *       java.util.ServiceLoader}
      * </ul>
      *
      * Only {@link #connectionSupplier(ConnectionSupplier)} is required.
@@ -277,7 +279,7 @@ public final class JdbcOutbox implements Outbox {
          *
          * @param newDialect the dialect; never {@code null}.
          * @return this builder.
-         * @since 0.2.0
+         * @since 0.1.0
          */
         public Builder dialect(OutboxDialect newDialect) {
             this.dialect = Objects.requireNonNull(newDialect, "dialect must not be null");

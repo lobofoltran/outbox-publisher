@@ -74,7 +74,7 @@ public final class MeteredOutbox implements Outbox {
     /**
      * Default replacement for tag values that fail the cardinality predicate.
      *
-     * @since 0.3.0
+     * @since 0.2.0
      */
     public static final String DEFAULT_TAG_FALLBACK = "other";
 
@@ -108,7 +108,7 @@ public final class MeteredOutbox implements Outbox {
      *     tagFallback}. Never {@code null}.
      * @param tagFallback the replacement string used when {@code tagValuePredicate} rejects a
      *     value. Never {@code null} or blank.
-     * @since 0.3.0
+     * @since 0.2.0
      */
     public MeteredOutbox(
             Outbox delegate,
