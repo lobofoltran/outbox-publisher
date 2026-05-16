@@ -14,11 +14,6 @@
     <description>Technology Compatibility Kit for OutboxDialect implementations: ships an abstract JUnit 5 contract test base in src/main/java so external dialect authors can extend it as a regular dependency (no classifier=tests).</description>
 
     <properties>
-        <!-- The contract base lives in src/main/java and is exercised by reference
-             implementations in other modules (PostgresDialectContractIT in outbox-jdbc).
-             This module ships no Java tests of its own, so JaCoCo has nothing to gate
-             on and PIT has nothing to mutate. Both thresholds set to 0.00 with this
-             justification rather than excluding the module from the quality profile. -->
         <coverage.line.minimum>0.00</coverage.line.minimum>
         <coverage.branch.minimum>0.00</coverage.branch.minimum>
     </properties>
@@ -33,9 +28,6 @@
             <artifactId>outbox-jdbc</artifactId>
         </dependency>
 
-        <!-- The TCK ships testing tooling as part of its public API: external
-             dialect authors `extends OutboxDialectContractTest` and inherit the
-             JUnit 5 / AssertJ surface. These are deliberately NOT scope=test. -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -52,9 +44,6 @@
             <scope>compile</scope>
         </dependency>
 
-        <!-- Self-test of the TCK against the bundled PostgreSQL dialect
-             (PostgresDialectContractIT). Strictly test-scope: external dialect
-             implementers consuming this module do not inherit them. -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>outbox-schema</artifactId>

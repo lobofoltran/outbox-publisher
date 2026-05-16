@@ -10,9 +10,9 @@ import java.util.Map;
 /**
  * Hand-rolled JSON serializer for the {@code headers} column.
  *
- * <p>Per ADR-0002 (B1) the library serializes {@code Map<String, String>} without pulling Jackson
- * into the runtime path. The input is constrained to string keys and string values, which means we
- * only need RFC 8259 string escaping — no polymorphism, no number formatting, no date handling.
+ * <p>The library serializes {@code Map<String, String>} without pulling Jackson into the runtime
+ * path. The input is constrained to string keys and string values, which means we only need RFC
+ * 8259 string escaping — no polymorphism, no number formatting, no date handling.
  *
  * <p>Output is a single-line JSON object preserving the iteration order of the input map. Callers
  * send the resulting string to PostgreSQL with an explicit {@code ?::jsonb} cast.

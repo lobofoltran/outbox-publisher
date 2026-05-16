@@ -11,17 +11,13 @@
     <artifactId>outbox-spring</artifactId>
 
     <name>${project.groupId}:${project.artifactId}</name>
-    <description>Spring Boot 3 autoconfiguration for outbox-publisher.</description>
+    <description>Spring Boot 4 autoconfiguration for outbox-publisher.</description>
 
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>outbox-core</artifactId>
         </dependency>
-        <!-- Compile dep. Spring Boot consumers almost always want JdbcOutbox transitively;
-             those bringing a different Outbox impl can <exclusion> this. The autoconfig
-             keeps @ConditionalOnClass(JdbcOutbox.class) so the bean still backs off when
-             the class is genuinely absent. -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>outbox-jdbc</artifactId>
@@ -30,35 +26,20 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>
-        <!-- Annotation processor only — generates META-INF/spring-configuration-metadata.json
-             from @ConfigurationProperties. Not on the runtime classpath. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
         </dependency>
-        <!-- Optional health-indicator integration: powers OutboxHealthIndicator. Spring Boot 4
-             split the health domain (AbstractHealthIndicator, ConditionalOnEnabledHealthIndicator)
-             out of spring-boot-actuator into spring-boot-health. The autoconfig only wires the
-             indicator when AbstractHealthIndicator is on the classpath. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-health</artifactId>
             <optional>true</optional>
         </dependency>
-        <!-- Spring Boot 4 split auto-configurations into per-domain jars.
-             spring-boot-jdbc hosts DataSourceAutoConfiguration and brings spring-jdbc
-             (with DataSourceUtils) transitively. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-jdbc</artifactId>
         </dependency>
-        <!-- Micrometer is consumed only by MeteredOutbox (an optional decorator) and
-             by the metrics BeanPostProcessor's @ConditionalOnClass / @ConditionalOnBean
-             checks. We do not redistribute it: consumers running on Spring Boot already
-             have Micrometer pulled in by spring-boot-actuator at the version managed by
-             their Spring Boot BOM. The version is resolved from the parent's
-             dependencyManagement so the consumer's BOM can still override it. -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
@@ -96,10 +77,6 @@
             <artifactId>opentelemetry-sdk-testing</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- spring-boot-jdbc only ships the auto-configuration. Tests need a real
-             connection pool implementation so DataSourceAutoConfiguration produces a
-             DataSource bean. We pin HikariCP for the ITs; the published library does
-             not force any pool on consumers. -->
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
@@ -144,9 +121,6 @@
 
     <build>
         <plugins>
-            <!-- Java 23+ defaults to -proc:none. Re-enable annotation processing explicitly so
-                 spring-boot-configuration-processor produces META-INF/spring-configuration-metadata.json
-                 from @ConfigurationProperties. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

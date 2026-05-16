@@ -45,9 +45,9 @@ outbox-publisher/
 
 ## Table contract (reference)
 
-The schema is split into two scripts under `outbox-schema/src/main/resources/sql/postgres/`. The publisher script is mandatory; the relay extension is applied **only** by adopters that run the polling relay. CDC adopters (Debezium etc.) skip the relay extension entirely. See ADR-0007 for the rationale.
+The schema is split into two scripts under `outbox-schema/src/main/resources/sql/postgres/`. The publisher script is mandatory; the relay extension is applied **only** by adopters that run the polling relay. CDC adopters (Debezium etc.) skip the relay extension entirely.
 
-All wall-clock timestamp columns are `TIMESTAMPTZ` (timestamp with time zone) so two JVMs in different zones writing the same `Instant` produce the same row. See ADR-0005.
+All wall-clock timestamp columns are `TIMESTAMPTZ` (timestamp with time zone) so two JVMs in different zones writing the same `Instant` produce the same row.
 
 ### Publisher table (`outbox-publisher.sql`)
 
@@ -377,7 +377,7 @@ When working with an AI agent, after every code-producing turn the AI must amend
   - or a cross-cutting scope: `build`, `ci`, `docs`, `repo`
   - Examples: `feat(outbox-jdbc): add UUIDv7 id generator`, `chore(repo): add CODEOWNERS`, `docs(outbox-core): document OutboxEvent fields`.
 - **One logical change per PR.** Cross-cutting refactors (e.g. renaming a package across all modules) must be split into separate PRs per concern, or clearly justified in the description.
-- **PR description MUST link to the ADR / PRD it implements.** When a change predates the ADR, the PR adds the ADR first, in a separate commit, and links it.
+- **PR description MUST describe the design decision the change implements** (or link to a design doc if one exists). When a change requires a substantive design call, the PR captures it in the description or a companion doc, not in scattered commit messages.
 - **All commits and tags MUST be GPG-signed.** Signing keys are configured via `git config --local` only — the global git config is never modified by this project. Branch protection on `main` rejects unsigned commits.
 - **Every commit authored with the help of an AI agent MUST carry a `Co-Authored-By` trailer for that agent.** This is non-optional and applies to amends and rebases too. The trailer block at the end of the commit message is:
 
@@ -396,6 +396,6 @@ When working with an AI agent, after every code-producing turn the AI must amend
 
 ### Repo-specific notes
 
-- ADRs are stored under `docs/adr/`. ADR-0001 backfills the decisions captured in [Locked decisions](#locked-decisions).
+- Long-form design decisions live under `docs/adr/` as historical record. Active contributors do not need to read every file in there to ship a change; treat them as the public log of why the codebase looks the way it does.
 - The PR template lives at `.github/pull_request_template.md`.
 - A pre-commit / pre-push hook validating commit message format and GPG signature is **recommended** but not yet wired. Track as a `chore(repo)` issue when needed.

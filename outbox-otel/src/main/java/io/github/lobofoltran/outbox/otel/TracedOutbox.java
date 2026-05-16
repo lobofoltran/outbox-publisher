@@ -37,8 +37,7 @@ import io.opentelemetry.context.Scope;
  * </ul>
  *
  * <p>By design, neither {@code aggregate_id} nor {@code destination} appears in the span name
- * (low-cardinality only). The same cardinality rules that govern metrics in ADR-0004 apply to span
- * names here — see ADR-0014.
+ * (low-cardinality only). The same cardinality rules that govern metric tags apply here.
  *
  * <p>On exception, the span status is set to {@link StatusCode#ERROR} and the exception is recorded
  * via {@link Span#recordException(Throwable)}; the original exception is rethrown unchanged.

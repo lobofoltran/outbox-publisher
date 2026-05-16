@@ -191,7 +191,7 @@ outbox-schema/src/main/resources/sql/postgres/
 └── outbox-relay-extension.sql    (optional — only for the polling relay)
 ```
 
-The schema is deliberately split by responsibility (see ADR-0007):
+The schema is deliberately split by responsibility:
 
 | Adoption mode | Apply | When to choose |
 | --- | --- | --- |
@@ -302,7 +302,7 @@ CREATE TABLE outbox (
 );
 ```
 
-`occurred_at` is `TIMESTAMPTZ` (timestamp with time zone) so two JVMs in different time zones writing the same `Instant` produce the same row. See ADR-0005.
+`occurred_at` is `TIMESTAMPTZ` (timestamp with time zone) so two JVMs in different time zones writing the same `Instant` produce the same row.
 
 ### `outbox-relay-extension.sql` — optional, polling relay only
 
@@ -323,7 +323,7 @@ CREATE INDEX IF NOT EXISTS idx_outbox_sent
     WHERE status = 'SENT';
 ```
 
-The script is idempotent so it can be layered on top of an existing publisher table at any time without data migration — useful when a deployment that started CDC-only later adds a polling relay. See ADR-0007.
+The script is idempotent so it can be layered on top of an existing publisher table at any time without data migration — useful when a deployment that started CDC-only later adds a polling relay.
 
 ### Indexes and the two query patterns
 
@@ -398,7 +398,7 @@ public record OutboxEvent(
     public int payloadSize() { ... }
 }
 
-// Sealed hierarchy (ADR-0008). Catching OutboxException continues to work; new code can
+// Sealed hierarchy. Catching OutboxException continues to work; new code can
 // pattern-match on the subtype to distinguish retryable failures from terminal ones.
 public sealed class OutboxException
         extends RuntimeException
@@ -435,15 +435,15 @@ module io.github.lobofoltran.outbox.jdbc {
 }
 ```
 
-Consumers obtain `Outbox` either through the Spring Boot autoconfiguration in `outbox-spring` or by directly invoking `JdbcOutbox.builder()...build()`. There is no `ServiceLoader` discovery of `Outbox` itself (see ADR-0009).
+Consumers obtain `Outbox` either through the Spring Boot autoconfiguration in `outbox-spring` or by directly invoking `JdbcOutbox.builder()...build()`. There is no `ServiceLoader` discovery of `Outbox` itself.
 
 #### Dialect SPI
 
-`outbox-jdbc` is database-agnostic; every PostgreSQL-specific decision (idempotent `INSERT ... ON CONFLICT`, `?::jsonb` cast, `TIMESTAMP WITH TIMEZONE` binding, SQLState classification) lives behind an `OutboxDialect` SPI in `io.github.lobofoltran.outbox.jdbc.spi`. The bundled `PostgresDialect` is auto-discovered through `ServiceLoader` on the first publish; pass `.dialect(...)` to the builder to pin one explicitly. See ADR-0013.
+`outbox-jdbc` is database-agnostic; every PostgreSQL-specific decision (idempotent `INSERT ... ON CONFLICT`, `?::jsonb` cast, `TIMESTAMP WITH TIMEZONE` binding, SQLState classification) lives behind an `OutboxDialect` SPI in `io.github.lobofoltran.outbox.jdbc.spi`. The bundled `PostgresDialect` is auto-discovered through `ServiceLoader` on the first publish; pass `.dialect(...)` to the builder to pin one explicitly.
 
 #### Writing a new dialect
 
-External authors who want to plug a non-PostgreSQL database into `outbox-jdbc` validate their implementation against the `outbox-tck` Technology Compatibility Kit. The TCK ships an abstract JUnit 5 contract base class in its main JAR (no `classifier=tests`); extend it once, wire your dialect plus a real `DataSource`, and you inherit the full runtime contract — happy-path inserts, autocommit refusal, timezone round-trip, capability-gated idempotency, SQLState classification, and batch atomicity. See ADR-0016 for the full enumeration of contract tests and capability flags.
+External authors who want to plug a non-PostgreSQL database into `outbox-jdbc` validate their implementation against the `outbox-tck` Technology Compatibility Kit. The TCK ships an abstract JUnit 5 contract base class in its main JAR (no `classifier=tests`); extend it once, wire your dialect plus a real `DataSource`, and you inherit the full runtime contract — happy-path inserts, autocommit refusal, timezone round-trip, capability-gated idempotency, SQLState classification, and batch atomicity.
 
 ```xml
 <dependency>
@@ -483,7 +483,7 @@ JdbcOutbox.builder()
     .build();
 ```
 
-The supplier MUST return a connection in `autoCommit=false` mode that participates in the caller's transaction (see ADR-0010). Misconfiguration surfaces as `OutboxConfigurationException` on the first publish.
+The supplier MUST return a connection in `autoCommit=false` mode that participates in the caller's transaction. Misconfiguration surfaces as `OutboxConfigurationException` on the first publish.
 
 When running under Spring Boot, prefer tweaking the auto-configured builder through a [`JdbcOutboxBuilderCustomizer`](#jdbcoutboxbuildercustomizer--extending-the-autoconfig-without-replacing-the-bean) bean instead of constructing a `JdbcOutbox` by hand — that path preserves the autoconfig's `Outbox` bean (and its observability decorators).
 
@@ -494,7 +494,7 @@ Spring Boot 4 autoconfiguration. Automatic Maven module (no `module-info.java`).
 - Creates the `Outbox` bean wired to the application's `DataSource`.
 - Hooks `JdbcOutbox` into Spring's transaction manager so the INSERT joins the current transaction.
 - Reads `io.github.lobofoltran.outbox.*` properties (see [Configuration reference](#configuration-reference)).
-- Wraps the resulting `Outbox` with `MeteredOutbox` (Micrometer) and/or `TracedOutbox` (OpenTelemetry) when the respective modules and beans are present. The wrappers are applied in a deterministic order — `TracedOutbox(MeteredOutbox(JdbcOutbox))` — via priority-ordered `BeanPostProcessor`s (see [ADR-0017](docs/adr/0017-spring-autoconfig-decoration-order.md)).
+- Wraps the resulting `Outbox` with `MeteredOutbox` (Micrometer) and/or `TracedOutbox` (OpenTelemetry) when the respective modules and beans are present. The wrappers are applied in a deterministic order — `TracedOutbox(MeteredOutbox(JdbcOutbox))` — via priority-ordered `BeanPostProcessor`s.
 - Registers `OutboxHealthIndicator` when Spring Boot Actuator is on the classpath and `management.health.outbox.enabled` is `true` (default). The indicator runs a `SELECT 1 FROM <schema>.<table> WHERE 1=0` probe and reports `UP`/`DOWN` accordingly — see `outbox-spring/src/main/java/.../OutboxHealthIndicator.java`.
 
 #### `JdbcOutboxBuilderCustomizer` — extending the autoconfig without replacing the bean
@@ -517,15 +517,15 @@ The autoconfig backs off entirely if you register your own `@Bean Outbox`, so cu
 
 ### `outbox-micrometer`
 
-Optional decorator module. Adds a `MeteredOutbox` that wraps any `Outbox` and emits two meters per `publish` call: an `outbox.publish` `Timer` (tags `aggregate_type`, `event_type`, `result`) and an `outbox.publish.bytes` `DistributionSummary` (tags `aggregate_type`, `event_type`). Micrometer itself is `<scope>provided</scope><optional>true</optional>` so the consumer's Micrometer BOM stays the single source of truth for version. See [ADR-0004](docs/adr/0004-metrics-and-cardinality.md) for the cardinality policy.
+Optional decorator module. Adds a `MeteredOutbox` that wraps any `Outbox` and emits two meters per `publish` call: an `outbox.publish` `Timer` (tags `aggregate_type`, `event_type`, `result`) and an `outbox.publish.bytes` `DistributionSummary` (tags `aggregate_type`, `event_type`). `aggregate_id` and `destination` are deliberately never tagged so cardinality stays bounded. Micrometer itself is `<scope>provided</scope><optional>true</optional>` so the consumer's Micrometer BOM stays the single source of truth for version.
 
 ### `outbox-otel`
 
-Optional decorator module. `TracedOutbox` wraps any `Outbox` and emits an OpenTelemetry `PRODUCER` span per publish, named `outbox publish` (single) or `outbox publish_batch` (batch), with attributes following the [messaging semantic conventions](https://opentelemetry.io/docs/specs/semconv/messaging/messaging-spans/) (`messaging.system=outbox`, `messaging.operation`, `messaging.message.id`, `messaging.destination.name`, `outbox.aggregate_type`, `outbox.event_type`, `messaging.batch.message_count`). On exception, span status is set to `ERROR` and the original exception is rethrown unchanged. See [ADR-0014](docs/adr/0014-tracing-decorator-outbox-otel.md).
+Optional decorator module. `TracedOutbox` wraps any `Outbox` and emits an OpenTelemetry `PRODUCER` span per publish, named `outbox publish` (single) or `outbox publish_batch` (batch), with attributes following the [messaging semantic conventions](https://opentelemetry.io/docs/specs/semconv/messaging/messaging-spans/) (`messaging.system=outbox`, `messaging.operation`, `messaging.message.id`, `messaging.destination.name`, `outbox.aggregate_type`, `outbox.event_type`, `messaging.batch.message_count`). On exception, span status is set to `ERROR` and the original exception is rethrown unchanged.
 
 ### `outbox-tck`
 
-Technology Compatibility Kit for `OutboxDialect` implementations. Ships an abstract JUnit 5 contract base class — `OutboxDialectContractTest` — in its main JAR (no `classifier=tests`) so external dialect authors can extend it as a regular `test`-scoped dependency. The contract covers happy-path inserts, autocommit refusal, timezone round-trip, capability-gated idempotency, SQLState classification, and batch atomicity. The bundled PostgreSQL dialect passes 100% of the contract via `PostgresDialectContractIT`. See [ADR-0016](docs/adr/0016-tck-contract-surface.md) and the [Writing a new dialect](#writing-a-new-dialect) section above.
+Technology Compatibility Kit for `OutboxDialect` implementations. Ships an abstract JUnit 5 contract base class — `OutboxDialectContractTest` — in its main JAR (no `classifier=tests`) so external dialect authors can extend it as a regular `test`-scoped dependency. The contract covers happy-path inserts, autocommit refusal, timezone round-trip, capability-gated idempotency, SQLState classification, and batch atomicity. The bundled PostgreSQL dialect passes 100% of the contract via `PostgresDialectContractIT`. See the [Writing a new dialect](#writing-a-new-dialect) section above.
 
 ### `outbox-schema`
 
@@ -673,7 +673,7 @@ The OpenTelemetry API is declared `<scope>provided</scope>` — bring your own v
 
 ### Cardinality policy
 
-Span names are deliberately low-cardinality — neither `aggregate_id` nor `destination` ever appears in the span name. The same rules that govern metric tags (ADR-0004) apply here. See ADR-0014.
+Span names are deliberately low-cardinality — neither `aggregate_id` nor `destination` ever appears in the span name. The same rules that govern metric tags apply here.
 
 ### Opt-out
 
@@ -730,9 +730,9 @@ The library is intentionally agnostic between the two.
 
 Notes:
 
-- Micrometer and OpenTelemetry are `<scope>provided</scope><optional>true</optional>` in `outbox-spring` and the respective decorator modules — the consumer's BOM (Spring Boot, custom platform BOM) is the single source of truth for the chosen version. See [ADR-0001 (D7)](docs/adr/0001-foundations.md) and the `outbox-bom` rationale.
+- Micrometer and OpenTelemetry are `<scope>provided</scope><optional>true</optional>` in `outbox-spring` and the respective decorator modules — the consumer's BOM (Spring Boot, custom platform BOM) is the single source of truth for the chosen version.
 - JDBC drivers must support the JSON column type (`org.postgresql:postgresql` 42.x is sufficient).
-- Java 25 is the current build floor. The runtime floor is tracked in [ADR-0015](docs/adr/0015-jvm-target-floor.md) (deferred to 1.0.0).
+- Java 25 is the current build floor. The runtime floor will be revisited at 1.0.0.
 
 ## Build, test, release
 
@@ -763,10 +763,10 @@ Yes. Import `outbox-core` + `outbox-jdbc` and pass your own connection supplier.
 The publisher only guarantees that events are persisted in the order their transactions commit. Delivery order is a relay/broker concern.
 
 **Does this deduplicate events?**
-By default, every dialect implements idempotency: writing twice with the same `OutboxEvent.id` is silently absorbed (see [ADR-0011](docs/adr/0011-idempotent-publish-on-duplicate-id.md)). Generate a stable id (e.g. UUIDv5 of the business key) when you want at-least-once safety; the second write becomes a no-op without surfacing an `OutboxIntegrityException`.
+By default, every dialect implements idempotency: writing twice with the same `OutboxEvent.id` is silently absorbed. Generate a stable id (e.g. UUIDv5 of the business key) when you want at-least-once safety; the second write becomes a no-op without surfacing an `OutboxIntegrityException`.
 
 **Why is `Outbox` itself not discovered via `ServiceLoader`?**
-`Outbox` discovery is explicit on purpose: Spring Boot consumers get the bean from `outbox-spring`'s autoconfig, plain-JDBC consumers call `JdbcOutbox.builder()...build()`. `ServiceLoader` is used internally by `outbox-jdbc` to discover `OutboxDialect` implementations (so you can plug in non-PostgreSQL databases without touching `outbox-jdbc`'s code). See [ADR-0009](docs/adr/0009-discovery-serviceloader-for-dialects-not-outbox.md).
+`Outbox` discovery is explicit on purpose: Spring Boot consumers get the bean from `outbox-spring`'s autoconfig, plain-JDBC consumers call `JdbcOutbox.builder()...build()`. `ServiceLoader` is used internally by `outbox-jdbc` to discover `OutboxDialect` implementations (so you can plug in non-PostgreSQL databases without touching `outbox-jdbc`'s code).
 
 **Can I publish across two databases?**
 No — that defeats the purpose. The whole point is that the event and the business change live in the same transaction in the same database.

@@ -32,7 +32,7 @@ import io.github.lobofoltran.outbox.jdbc.spi.TableRef;
  *   <li>the {@code ?::jsonb} cast for the {@code headers} column;
  *   <li>the {@code TIMESTAMP WITH TIMEZONE} binding for {@code occurred_at} (so the database
  *       round-trips a true {@link Instant}, immune to JVM/session timezone changes);
- *   <li>the SQLState-to-{@link OutboxException} mapping documented in ADR-0008.
+ *   <li>the SQLState-to-{@link OutboxException} mapping for the sealed exception hierarchy.
  * </ul>
  *
  * <p>This class is in an internal package and is <em>not</em> exported by the {@code outbox-jdbc}
@@ -76,7 +76,7 @@ public final class PostgresDialect implements OutboxDialect {
             throws SQLException {
         // setObject with an OffsetDateTime preserves the absolute instant (UTC offset) in
         // timestamptz columns, regardless of the JVM default timezone or the JDBC session
-        // timezone. See ADR-0005.
+        // timezone.
         statement.setObject(
                 index,
                 OffsetDateTime.ofInstant(value, ZoneOffset.UTC),
