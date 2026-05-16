@@ -14,6 +14,10 @@
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Bill of Materials for outbox-publisher. Import this to pin module versions in one place.</description>
 
+    <properties>
+        <maven-invoker-plugin.version>3.9.0</maven-invoker-plugin.version>
+    </properties>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -43,4 +47,54 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <build>
+        <plugins>
+            <!--
+              Smoke test for the BOM. The project under src/it/consumer imports this BOM
+              via dependencyManagement and declares every published module without a
+              <version>. If Maven resolves all five artifacts at this BOM's version,
+              the BOM is doing its job.
+
+              The reactor must be installed first so the consumer can resolve the modules
+              from the local repository. The execution runs in the `install` phase
+              (after every sibling outbox-* module has been installed by the reactor)
+              and is opt-in via `-Pbom-smoke-test` so the default `verify` build stays
+              fast and isolated from m2.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-invoker-plugin</artifactId>
+                <version>${maven-invoker-plugin.version}</version>
+                <configuration>
+                    <projectsDirectory>src/it</projectsDirectory>
+                    <cloneProjectsTo>${project.build.directory}/it</cloneProjectsTo>
+                    <streamLogsOnFailures>true</streamLogsOnFailures>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>bom-smoke-test</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-invoker-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>bom-smoke-test</id>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <phase>install</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
