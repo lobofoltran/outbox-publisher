@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/). Releases are managed automatically by [release-please](https://github.com/googleapis/release-please).
 
+## [0.3.0](https://github.com/lobofoltran/outbox-publisher/compare/v0.2.0...v0.3.0) (2026-05-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **outbox-jdbc:** OutboxDialect's bindId / bindHeaders / bindTimestamp / bindOptionalString / insertSql methods are removed in favor of prepareInsert. Third-party dialects must migrate. Targeted for 0.2.0.
+* **outbox-core:** OutboxEvent no longer rejects long strings in its constructor. Callers that relied on the IllegalArgumentException being thrown at OutboxEvent construction time now see it raised at outbox.publish(event) time instead, and the message now reports byte length ("128 bytes (UTF-8)") rather than character count ("128 characters"). Behaviour against PostgreSQL is unchanged for ASCII-only fields; multibyte fields are now correctly rejected on the true byte boundary. Custom OutboxDialect implementations remain source-compatible thanks to the default no-op validate() method.
+
+### Features
+
+* **outbox-core:** eager null validation in OutboxEvent.Builder ([#49](https://github.com/lobofoltran/outbox-publisher/issues/49)) ([8f89700](https://github.com/lobofoltran/outbox-publisher/commit/8f89700dba0bcb64bb9e56fcc586c7cd73756127))
+* **outbox-jdbc:** cascade ServiceLoader through TCCL and system loader ([#55](https://github.com/lobofoltran/outbox-publisher/issues/55)) ([c97b453](https://github.com/lobofoltran/outbox-publisher/commit/c97b45367e611b69773b0f81857eb6f854e4bbae))
+* **outbox-micrometer:** tag-value cardinality cap ([#62](https://github.com/lobofoltran/outbox-publisher/issues/62)) ([d84ea82](https://github.com/lobofoltran/outbox-publisher/commit/d84ea82669da1443c8569aebdd95815720956963))
+* **outbox-otel:** inject W3C trace context into event headers ([#57](https://github.com/lobofoltran/outbox-publisher/issues/57)) ([351e7c9](https://github.com/lobofoltran/outbox-publisher/commit/351e7c927250232044ca8c2eb5a578fced026ce4))
+
+
+### Bug Fixes
+
+* **build:** align pitest-junit5-plugin with JUnit Platform 6 ([#59](https://github.com/lobofoltran/outbox-publisher/issues/59)) ([9d81b59](https://github.com/lobofoltran/outbox-publisher/commit/9d81b59a63e78e89dbb2a23a267d785a29c7c637))
+* **ci:** drop release-please package-name so tagger matches merged release PRs ([#60](https://github.com/lobofoltran/outbox-publisher/issues/60)) ([075e182](https://github.com/lobofoltran/outbox-publisher/commit/075e182bf446ce91a2ca72209c2790962bcf6b84))
+* **outbox-jdbc:** refine PostgreSQL SQLState classification ([#48](https://github.com/lobofoltran/outbox-publisher/issues/48)) ([52aaba4](https://github.com/lobofoltran/outbox-publisher/commit/52aaba429983c58cec12c464920b4870523b0cd6))
+* **outbox-otel:** tolerate null event id in span attributes ([#50](https://github.com/lobofoltran/outbox-publisher/issues/50)) ([69590fb](https://github.com/lobofoltran/outbox-publisher/commit/69590fbddd6e0595aa03e6d60802d7dbabf1e575))
+
+
+### Code Refactoring
+
+* **outbox-core:** move column-width validation to the dialect ([#58](https://github.com/lobofoltran/outbox-publisher/issues/58)) ([ca60c09](https://github.com/lobofoltran/outbox-publisher/commit/ca60c09fe0dad508c70387302ca856bfcca5a252))
+* **outbox-jdbc:** replace index-based dialect SPI with prepare/bind handle ([#54](https://github.com/lobofoltran/outbox-publisher/issues/54)) ([c520f15](https://github.com/lobofoltran/outbox-publisher/commit/c520f159501288f4d9ad613b27e21ea4f605acda))
+
 ## [0.2.0](https://github.com/lobofoltran/outbox-publisher/compare/v0.1.0...v0.2.0) (2026-05-16)
 
 
