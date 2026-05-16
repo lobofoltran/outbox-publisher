@@ -51,6 +51,11 @@
         <url>https://github.com/lobofoltran/outbox-publisher/issues</url>
     </issueManagement>
 
+    <ciManagement>
+        <system>GitHub Actions</system>
+        <url>https://github.com/lobofoltran/outbox-publisher/actions</url>
+    </ciManagement>
+
     <distributionManagement>
         <repository>
             <id>github</id>
@@ -105,8 +110,6 @@
         <assertj.version>3.27.0</assertj.version>
         <mockito.version>5.14.2</mockito.version>
         <testcontainers.version>1.21.4</testcontainers.version>
-        <postgresql.version>42.7.11</postgresql.version>
-        <micrometer.version>1.14.2</micrometer.version>
         <opentelemetry.version>1.46.0</opentelemetry.version>
         <spring-boot.version>4.0.6</spring-boot.version>
     </properties>
@@ -155,16 +158,6 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <version>${slf4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.postgresql</groupId>
-                <artifactId>postgresql</artifactId>
-                <version>${postgresql.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-core</artifactId>
-                <version>${micrometer.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.opentelemetry</groupId>

@@ -19,6 +19,14 @@
     </properties>
 
     <dependencyManagement>
+        <!--
+          The BOM intentionally manages only the outbox-publisher modules.
+          Third-party runtime dependencies (Micrometer, SLF4J, OpenTelemetry,
+          PostgreSQL driver) are deliberately not pinned here so the consumer's
+          own BOM stack (Spring Boot, Micrometer BOM, custom platform BOM)
+          remains the single source of truth. See ADR-0001 D7 (logging) and the
+          pre-release sweep notes for the rationale.
+        -->
         <dependencies>
             <dependency>
                 <groupId>${project.groupId}</groupId>

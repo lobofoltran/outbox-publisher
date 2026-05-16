@@ -24,9 +24,16 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>outbox-core</artifactId>
         </dependency>
+        <!-- Micrometer is provided so consumers bring their own version (e.g. the one
+             pinned by their Spring Boot / Micrometer BOM). The version below is the
+             lowest release the decorator compiles against. <optional>true</optional>
+             keeps it from leaking transitively to consumers that did not opt in. -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
+            <version>1.14.0</version>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 
         <dependency>
