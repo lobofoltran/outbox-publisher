@@ -43,8 +43,12 @@ import java.util.UUID;
  *     publish time.
  * @param payload opaque bytes; the library never deserializes it.
  * @param headers string-to-string metadata; never {@code null}, may be empty.
- * @param destination optional routing hint (topic / exchange / queue); per-dialect width limits
- *     apply at publish time when present.
+ * @param destination optional routing hint (topic / exchange / queue) as a transport-agnostic
+ *     <em>logical</em> name, e.g. {@code "orders"} — never a URI like {@code "kafka://orders"}. The
+ *     broker family is conveyed out-of-band (relay configuration, headers, or the {@code
+ *     messaging.system} span attribute), not embedded here, because the publisher does not know
+ *     which transport the relay will use. Per-dialect width limits apply at publish time when
+ *     present.
  * @param occurredAt the domain timestamp; never {@code null}.
  * @since 0.1.0
  */
@@ -285,8 +289,11 @@ public record OutboxEvent(
         }
 
         /**
-         * Sets the optional destination (topic / exchange / queue). Width limits are enforced by
-         * the dialect at publish time.
+         * Sets the optional destination (topic / exchange / queue) as a transport-agnostic
+         * <em>logical</em> name, e.g. {@code "orders"}. Do not pass a URI like {@code
+         * "kafka://orders"} — the broker family belongs in the relay configuration (or the {@code
+         * messaging.system} span attribute), not in the row. Width limits are enforced by the
+         * dialect at publish time.
          *
          * @param newDestination the destination, or {@code null}.
          * @return this builder.

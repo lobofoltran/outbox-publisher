@@ -8,8 +8,11 @@ package io.github.lobofoltran.outbox.otel;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
@@ -37,9 +40,16 @@ import io.opentelemetry.context.propagation.TextMapSetter;
  *
  * <ul>
  *   <li>{@code outbox publish} — single event publish. Span kind {@link SpanKind#PRODUCER}.
- *       Attributes: {@code messaging.system=outbox}, {@code messaging.operation=publish}, {@code
+ *       Attributes: {@code messaging.system}, {@code messaging.operation=publish}, {@code
  *       messaging.message.id}, {@code messaging.destination.name} (when non-null), {@code
- *       outbox.aggregate_type}, {@code outbox.event_type}.
+ *       outbox.aggregate_type}, {@code outbox.event_type}. {@code messaging.system} defaults to
+ *       {@code outbox} (the publisher is broker-agnostic); when {@link OutboxEvent#destination()}
+ *       carries a URI-style scheme prefix such as {@code kafka://orders} — discouraged but
+ *       tolerated — the scheme is lifted into {@code messaging.system} (lower-cased) and the
+ *       remainder ({@code orders}) becomes {@code messaging.destination.name}. This keeps the
+ *       attribute aligned with the OpenTelemetry messaging semantic conventions, under which {@code
+ *       messaging.destination.name} is the broker-specific <em>logical</em> destination name with
+ *       no transport scheme.
  *   <li>{@code outbox publish_batch} — batch publish. Span kind {@link SpanKind#PRODUCER}.
  *       Attributes: {@code messaging.system=outbox}, {@code messaging.operation=publish_batch},
  *       {@code messaging.batch.message_count}. Each event in the batch carries its own injected
@@ -92,6 +102,15 @@ public final class TracedOutbox implements Outbox {
     private static final String MESSAGING_SYSTEM = "outbox";
     private static final String OPERATION_PUBLISH = "publish";
     private static final String OPERATION_PUBLISH_BATCH = "publish_batch";
+
+    /**
+     * Matches a URI-style {@code scheme://name} prefix. The scheme grammar follows RFC&nbsp;3986
+     * §3.1 (ALPHA, then ALPHA / DIGIT / "+" / "-" / "."); the name part must be non-empty. Used
+     * only to normalize {@code messaging.destination.name} when callers (against the documented
+     * contract) embed the transport scheme in {@link OutboxEvent#destination()}.
+     */
+    private static final Pattern DESTINATION_URI_PREFIX =
+            Pattern.compile("^([A-Za-z][A-Za-z0-9+\\-.]*)://(.+)$");
 
     /**
      * Instrumentation scope name reported on every span emitted by this decorator. Stable across
@@ -193,10 +212,11 @@ public final class TracedOutbox implements Outbox {
     @Override
     public void publish(OutboxEvent event) {
         Objects.requireNonNull(event, "event must not be null");
+        ParsedDestination destination = parseDestination(event.destination());
         Span span =
                 tracer.spanBuilder(SPAN_NAME_PUBLISH)
                         .setSpanKind(SpanKind.PRODUCER)
-                        .setAttribute(ATTR_MESSAGING_SYSTEM, MESSAGING_SYSTEM)
+                        .setAttribute(ATTR_MESSAGING_SYSTEM, destination.system())
                         .setAttribute(ATTR_MESSAGING_OPERATION, OPERATION_PUBLISH)
                         .setAttribute(ATTR_OUTBOX_AGGREGATE_TYPE, event.aggregateType())
                         .setAttribute(ATTR_OUTBOX_EVENT_TYPE, event.eventType())
@@ -207,11 +227,38 @@ public final class TracedOutbox implements Outbox {
         if (event.id() != null) {
             span.setAttribute(ATTR_MESSAGING_MESSAGE_ID, event.id().toString());
         }
-        if (event.destination() != null) {
-            span.setAttribute(ATTR_MESSAGING_DESTINATION_NAME, event.destination());
+        if (destination.name() != null) {
+            span.setAttribute(ATTR_MESSAGING_DESTINATION_NAME, destination.name());
         }
         runUnderSpan(span, () -> delegate.publish(withInjectedContext(event)));
     }
+
+    /**
+     * Splits {@code destination} into the pair {@code (messaging.system,
+     * messaging.destination.name)}.
+     *
+     * <p>The {@link OutboxEvent#destination()} contract is a transport-agnostic logical name (e.g.
+     * {@code "orders"}), in which case {@code messaging.system} stays at the broker-agnostic
+     * default {@value #MESSAGING_SYSTEM} and the destination is forwarded as-is. When a caller —
+     * against the documented contract — embeds a URI scheme such as {@code "kafka://orders"}, the
+     * scheme is stripped into {@code messaging.system} (lower-cased, per OpenTelemetry semconv) and
+     * the remainder becomes {@code messaging.destination.name}. A {@code null} destination yields
+     * {@code (outbox, null)} so callers can decide to omit the attribute.
+     */
+    private static ParsedDestination parseDestination(String destination) {
+        if (destination == null) {
+            return new ParsedDestination(MESSAGING_SYSTEM, null);
+        }
+        Matcher matcher = DESTINATION_URI_PREFIX.matcher(destination);
+        if (matcher.matches()) {
+            return new ParsedDestination(
+                    matcher.group(1).toLowerCase(Locale.ROOT), matcher.group(2));
+        }
+        return new ParsedDestination(MESSAGING_SYSTEM, destination);
+    }
+
+    /** Pair returned by {@link #parseDestination(String)}; {@code name} may be {@code null}. */
+    private record ParsedDestination(String system, String name) {}
 
     @Override
     public void publishAll(Iterable<OutboxEvent> events) {

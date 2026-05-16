@@ -113,6 +113,58 @@ class TracedOutboxTest {
     }
 
     @Test
+    void single_publish_strips_uri_scheme_into_messaging_system() {
+        // Adopters that ignore the OutboxEvent.destination contract and embed a URI scheme
+        // (e.g. "kafka://orders") must not poison messaging.destination.name — semconv requires a
+        // logical name. The decorator lifts the scheme into messaging.system instead.
+        traced.publish(event("Order", "OrderPlaced", "kafka://orders.events"));
+
+        SpanData span = singleSpan();
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_MESSAGING_SYSTEM)).isEqualTo("kafka");
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_MESSAGING_DESTINATION_NAME))
+                .isEqualTo("orders.events");
+    }
+
+    @Test
+    void single_publish_lower_cases_uri_scheme_in_messaging_system() {
+        // RFC 3986 schemes are case-insensitive; the semconv canonical form is lower-case.
+        // The destination-name part is left verbatim — only the scheme is normalized.
+        traced.publish(event("Order", "OrderPlaced", "Kafka://Orders.Events"));
+
+        SpanData span = singleSpan();
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_MESSAGING_SYSTEM)).isEqualTo("kafka");
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_MESSAGING_DESTINATION_NAME))
+                .isEqualTo("Orders.Events");
+    }
+
+    @Test
+    void single_publish_keeps_destination_verbatim_when_no_uri_scheme_present() {
+        // Strings that look almost like a URI but lack the "://" separator (e.g. "weird:thing")
+        // are forwarded as-is and messaging.system stays at the default. This is the boundary
+        // between "logical name that happens to contain a colon" and "URI prefix".
+        traced.publish(event("Order", "OrderPlaced", "weird:thing"));
+
+        SpanData span = singleSpan();
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_MESSAGING_SYSTEM))
+                .isEqualTo("outbox");
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_MESSAGING_DESTINATION_NAME))
+                .isEqualTo("weird:thing");
+    }
+
+    @Test
+    void single_publish_treats_scheme_only_destination_as_literal() {
+        // "://orders" has no scheme part (RFC 3986 §3.1 requires ALPHA first). The destination
+        // is therefore not URI-shaped and must be forwarded as-is; the system stays "outbox".
+        traced.publish(event("Order", "OrderPlaced", "://orders"));
+
+        SpanData span = singleSpan();
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_MESSAGING_SYSTEM))
+                .isEqualTo("outbox");
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_MESSAGING_DESTINATION_NAME))
+                .isEqualTo("://orders");
+    }
+
+    @Test
     void single_publish_omits_destination_attribute_when_null() {
         OutboxEvent event = event("Order", "OrderPlaced", null);
 
