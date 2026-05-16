@@ -30,17 +30,12 @@ class OutboxEventBuilderTest {
                         "aggregateType",
                         (Consumer<OutboxEvent.Builder>) b -> b.aggregateType(null)),
                 Arguments.of(
-                        "aggregateId",
-                        (Consumer<OutboxEvent.Builder>) b -> b.aggregateId(null)),
+                        "aggregateId", (Consumer<OutboxEvent.Builder>) b -> b.aggregateId(null)),
+                Arguments.of("eventType", (Consumer<OutboxEvent.Builder>) b -> b.eventType(null)),
                 Arguments.of(
-                        "eventType", (Consumer<OutboxEvent.Builder>) b -> b.eventType(null)),
-                Arguments.of(
-                        "contentType",
-                        (Consumer<OutboxEvent.Builder>) b -> b.contentType(null)),
-                Arguments.of(
-                        "payload", (Consumer<OutboxEvent.Builder>) b -> b.payload(null)),
-                Arguments.of(
-                        "headers", (Consumer<OutboxEvent.Builder>) b -> b.headers(null)));
+                        "contentType", (Consumer<OutboxEvent.Builder>) b -> b.contentType(null)),
+                Arguments.of("payload", (Consumer<OutboxEvent.Builder>) b -> b.payload(null)),
+                Arguments.of("headers", (Consumer<OutboxEvent.Builder>) b -> b.headers(null)));
     }
 
     @ParameterizedTest(name = "{0}(null) throws NPE eagerly with field name in message")
