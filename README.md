@@ -1,5 +1,7 @@
 # outbox-publisher
 
+[![build](https://github.com/lobofoltran/outbox-publisher/actions/workflows/build.yml/badge.svg)](https://github.com/lobofoltran/outbox-publisher/actions/workflows/build.yml)
+
 A Java library that gives your application a single API — `outbox.publish(event)` — to write events to an `outbox` table inside the caller's database transaction (Transactional Outbox pattern).
 
 The application **does not know** how those events will be delivered to the outside world. That responsibility belongs to a relay (polling-based, see [`outbox-relay`](#related-projects)) or to a CDC pipeline like Debezium. The boundary between this library and any consumer is the **`outbox` table** — there is no Java coupling between this project and the relay.
