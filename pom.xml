@@ -73,6 +73,12 @@
         <coverage.line.minimum>0.90</coverage.line.minimum>
         <coverage.branch.minimum>0.90</coverage.branch.minimum>
 
+        <!-- Empty default so Surefire's @{surefire.argLine} resolves cleanly when JaCoCo
+             is not active (e.g. under the `pit` profile). Quality activates JaCoCo, which
+             rewrites this property with the agent path before Surefire is invoked. -->
+        <surefire.argLine/>
+        <failsafe.argLine/>
+
         <!-- Plugin versions -->
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
@@ -83,9 +89,10 @@
         <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
-        <spotless-maven-plugin.version>2.44.0</spotless-maven-plugin.version>
+        <spotless-maven-plugin.version>2.44.5</spotless-maven-plugin.version>
+        <google-java-format.version>1.27.0</google-java-format.version>
         <flatten-maven-plugin.version>1.7.0</flatten-maven-plugin.version>
-        <pitest-maven.version>1.17.0</pitest-maven.version>
+        <pitest-maven.version>1.19.1</pitest-maven.version>
         <pitest-junit5-plugin.version>1.2.1</pitest-junit5-plugin.version>
         <error-prone.version>2.36.0</error-prone.version>
         <checkstyle.version>10.20.2</checkstyle.version>
@@ -212,7 +219,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
+                        <argLine>@{surefire.argLine} --enable-native-access=ALL-UNNAMED</argLine>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -220,7 +227,7 @@
                     <artifactId>maven-failsafe-plugin</artifactId>
                     <version>${maven-failsafe-plugin.version}</version>
                     <configuration>
-                        <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
+                        <argLine>@{failsafe.argLine} --enable-native-access=ALL-UNNAMED</argLine>
                     </configuration>
                     <executions>
                         <execution>
@@ -262,9 +269,11 @@
                     <version>${spotless-maven-plugin.version}</version>
                     <configuration>
                         <java>
-                            <palantirJavaFormat>
-                                <version>2.50.0</version>
-                            </palantirJavaFormat>
+                            <googleJavaFormat>
+                                <version>${google-java-format.version}</version>
+                                <style>AOSP</style>
+                                <reflowLongStrings>true</reflowLongStrings>
+                            </googleJavaFormat>
                             <removeUnusedImports/>
                             <importOrder>
                                 <order>\#,java|javax|jakarta,io.github.lobofoltran,</order>
@@ -325,12 +334,18 @@
                             <goals>
                                 <goal>prepare-agent</goal>
                             </goals>
+                            <configuration>
+                                <propertyName>surefire.argLine</propertyName>
+                            </configuration>
                         </execution>
                         <execution>
                             <id>jacoco-prepare-agent-it</id>
                             <goals>
                                 <goal>prepare-agent-integration</goal>
                             </goals>
+                            <configuration>
+                                <propertyName>failsafe.argLine</propertyName>
+                            </configuration>
                         </execution>
                         <execution>
                             <id>jacoco-report</id>
