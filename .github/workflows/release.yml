@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 25 and GPG
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '25'
@@ -38,7 +38,7 @@ jobs:
         run: ./mvnw -B -ntp -Prelease -DskipTests deploy
 
       - name: Attach signed JARs to the GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             **/target/*.jar
