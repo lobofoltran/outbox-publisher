@@ -96,8 +96,14 @@ public final class PostgresDialect implements OutboxDialect {
     @Override
     public OutboxException translate(SQLException ex, String contextMessage) {
         String state = ex.getSQLState();
-        String prefix = state == null ? "" : (state.length() >= 2 ? state.substring(0, 2) : state);
         String message = contextMessage + " [SQLState=" + state + "]";
+        if (state != null && state.length() == 5) {
+            OutboxException byExact = translateExact(state, message, ex);
+            if (byExact != null) {
+                return byExact;
+            }
+        }
+        String prefix = state == null ? "" : (state.length() >= 2 ? state.substring(0, 2) : state);
         return switch (prefix) {
             case "23" -> new OutboxIntegrityException(message, ex);
             case "08", "40" -> new OutboxTransientException(message, ex);
@@ -105,6 +111,16 @@ public final class PostgresDialect implements OutboxDialect {
             case "42", "53", "57", "58", "3D", "F0" ->
                     new OutboxConfigurationException(message, ex);
             default -> new OutboxException(message, ex);
+        };
+    }
+
+    private static OutboxException translateExact(String state, String message, SQLException ex) {
+        return switch (state) {
+            // not_null_violation: schema column is required, caller violated schema contract.
+            case "23502" -> new OutboxConfigurationException(message, ex);
+            // PostgreSQL failover scenarios — recoverable on retry.
+            case "57P01", "57P02", "57P03", "57014" -> new OutboxTransientException(message, ex);
+            default -> null;
         };
     }
 
