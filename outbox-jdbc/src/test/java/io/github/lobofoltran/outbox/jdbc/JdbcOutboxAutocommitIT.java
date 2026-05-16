@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.jdbc;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

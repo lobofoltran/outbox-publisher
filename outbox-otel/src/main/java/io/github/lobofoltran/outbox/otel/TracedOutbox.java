@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.otel;
 
 import java.util.ArrayList;
@@ -40,6 +45,8 @@ import io.opentelemetry.context.Scope;
  *
  * <p>Instances are thread-safe: the {@link Tracer} contract permits concurrent use, and the
  * decorator holds no mutable state of its own.
+ *
+ * @since 0.2.0
  */
 public final class TracedOutbox implements Outbox {
 
@@ -83,6 +90,10 @@ public final class TracedOutbox implements Outbox {
      * Tracer} from its own {@code TracerProvider}, including setting an instrumentation scope name
      * and version that fit its observability conventions. Prefer {@link #TracedOutbox(Outbox,
      * OpenTelemetry)} when those defaults are acceptable.
+     *
+     * @param delegate the underlying {@link Outbox}; never {@code null}.
+     * @param tracer the {@link Tracer} to record spans on; never {@code null}.
+     * @since 0.2.0
      */
     public TracedOutbox(Outbox delegate, Tracer tracer) {
         this.delegate = Objects.requireNonNull(delegate, "delegate must not be null");
@@ -99,6 +110,10 @@ public final class TracedOutbox implements Outbox {
      * <p>The Spring Boot auto-configuration uses this constructor so the instrumentation scope name
      * and version follow the library, not the application. Manual wiring code should prefer this
      * constructor too unless the caller needs a non-default tracer.
+     *
+     * @param delegate the underlying {@link Outbox}; never {@code null}.
+     * @param otel the {@link OpenTelemetry} used to obtain a {@link Tracer}; never {@code null}.
+     * @since 0.2.0
      */
     public TracedOutbox(Outbox delegate, OpenTelemetry otel) {
         this(

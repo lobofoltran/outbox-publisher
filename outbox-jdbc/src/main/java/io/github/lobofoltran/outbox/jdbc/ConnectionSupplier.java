@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.jdbc;
 
 import java.sql.Connection;
@@ -70,6 +75,8 @@ import java.sql.SQLException;
  *       try-with-resources). The caller still needs the connection to commit the surrounding
  *       transaction.
  * </ul>
+ *
+ * @since 0.1.0
  */
 @FunctionalInterface
 public interface ConnectionSupplier {
@@ -77,7 +84,9 @@ public interface ConnectionSupplier {
     /**
      * Returns the {@link Connection} bound to the caller's current transaction.
      *
+     * @return the active {@link Connection}.
      * @throws SQLException if obtaining the connection fails.
+     * @since 0.1.0
      */
     Connection get() throws SQLException;
 }

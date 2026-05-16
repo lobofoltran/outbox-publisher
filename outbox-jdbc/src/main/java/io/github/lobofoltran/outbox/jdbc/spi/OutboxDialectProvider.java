@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.jdbc.spi;
 
 import java.sql.DatabaseMetaData;
@@ -13,6 +18,8 @@ import java.sql.SQLException;
  * the database, and picks the matching provider with the highest {@link #priority priority}.
  * Built-in providers use priority {@code 0}; third-party providers may use larger values to take
  * precedence.
+ *
+ * @since 0.2.0
  */
 public interface OutboxDialectProvider {
 

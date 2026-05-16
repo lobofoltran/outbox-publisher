@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.spring;
 
 import javax.sql.DataSource;
@@ -75,6 +80,8 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
  * <p>If Spring Boot Actuator is on the classpath an {@link OutboxHealthIndicator} is registered
  * under the name {@code outbox}. It is opt-out via {@link OutboxProperties.Health health.enabled}
  * and respects the standard {@code management.health.outbox.enabled} switch.
+ *
+ * @since 0.1.0
  */
 @AutoConfiguration(after = DataSourceAutoConfiguration.class)
 @ConditionalOnClass({Outbox.class, JdbcOutbox.class})
@@ -86,6 +93,17 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
 @EnableConfigurationProperties(OutboxProperties.class)
 public class OutboxAutoConfiguration {
 
+    /**
+     * Creates the default {@link Outbox} bean (a {@link JdbcOutbox}) wired to the single {@link
+     * DataSource} in the context, with optional {@link JdbcOutboxBuilderCustomizer} hooks applied
+     * before {@link JdbcOutbox.Builder#build()}.
+     *
+     * @param dataSource the {@link DataSource} the outbox writes through.
+     * @param properties the bound {@link OutboxProperties}.
+     * @param customizers ordered customizers contributed by the application.
+     * @return the configured {@link Outbox} bean.
+     * @since 0.1.0
+     */
     @Bean
     @ConditionalOnMissingBean(Outbox.class)
     public Outbox outbox(

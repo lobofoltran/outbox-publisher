@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.jdbc.spi;
 
 /**
@@ -7,6 +12,8 @@ package io.github.lobofoltran.outbox.jdbc.spi;
  *
  * <p>This enum is intentionally small — it lists only capabilities that affect observable behavior
  * of the publisher, not every JDBC corner case.
+ *
+ * @since 0.2.0
  */
 public enum DialectCapability {
 

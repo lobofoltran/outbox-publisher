@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.spring;
 
 import java.sql.Connection;
@@ -25,6 +30,8 @@ import org.springframework.boot.health.contributor.Health;
  *
  * <p>Reports {@code up()} with a {@code table} detail on success; reports {@code down()} carrying
  * the {@link SQLException} cause on failure.
+ *
+ * @since 0.2.0
  */
 public class OutboxHealthIndicator extends AbstractHealthIndicator {
 
@@ -32,6 +39,15 @@ public class OutboxHealthIndicator extends AbstractHealthIndicator {
     private final TableRef table;
     private final String probeSql;
 
+    /**
+     * Creates a new health indicator.
+     *
+     * @param dataSource the {@link DataSource} the probe opens connections from; never {@code
+     *     null}.
+     * @param schema the outbox schema, or {@code null}/blank for an unqualified table.
+     * @param tableName the outbox table name.
+     * @since 0.2.0
+     */
     public OutboxHealthIndicator(DataSource dataSource, String schema, String tableName) {
         super("outbox health check failed");
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource must not be null");

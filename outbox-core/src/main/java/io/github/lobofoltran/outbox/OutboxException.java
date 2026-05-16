@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox;
 
 import java.io.Serial;
@@ -24,6 +29,8 @@ import java.io.Serial;
  *
  * <p>Code that previously caught {@code OutboxException} continues to work unchanged because every
  * subtype is still an {@code OutboxException}.
+ *
+ * @since 0.1.0
  */
 public sealed class OutboxException extends RuntimeException
         permits OutboxTransientException,
@@ -33,10 +40,23 @@ public sealed class OutboxException extends RuntimeException
 
     @Serial private static final long serialVersionUID = 1L;
 
+    /**
+     * Creates a new {@code OutboxException} with the given message.
+     *
+     * @param message human-readable description of the failure.
+     * @since 0.1.0
+     */
     public OutboxException(String message) {
         super(message);
     }
 
+    /**
+     * Creates a new {@code OutboxException} with the given message and cause.
+     *
+     * @param message human-readable description of the failure.
+     * @param cause the underlying cause.
+     * @since 0.1.0
+     */
     public OutboxException(String message, Throwable cause) {
         super(message, cause);
     }
