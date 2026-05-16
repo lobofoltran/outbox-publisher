@@ -208,6 +208,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder aggregateType(String newAggregateType) {
+            Objects.requireNonNull(newAggregateType, "aggregateType must not be null");
             this.aggregateType = newAggregateType;
             return this;
         }
@@ -220,6 +221,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder aggregateId(String newAggregateId) {
+            Objects.requireNonNull(newAggregateId, "aggregateId must not be null");
             this.aggregateId = newAggregateId;
             return this;
         }
@@ -232,6 +234,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder eventType(String newEventType) {
+            Objects.requireNonNull(newEventType, "eventType must not be null");
             this.eventType = newEventType;
             return this;
         }
@@ -244,6 +247,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder contentType(String newContentType) {
+            Objects.requireNonNull(newContentType, "contentType must not be null");
             this.contentType = newContentType;
             return this;
         }
@@ -256,6 +260,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder payload(byte[] newPayload) {
+            Objects.requireNonNull(newPayload, "payload must not be null");
             this.payload = newPayload;
             return this;
         }
