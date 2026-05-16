@@ -6,7 +6,6 @@
 package io.github.lobofoltran.outbox.jdbc;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -20,9 +19,9 @@ import io.github.lobofoltran.outbox.OutboxConfigurationException;
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.OutboxException;
 import io.github.lobofoltran.outbox.jdbc.internal.DialectAutoDetector;
-import io.github.lobofoltran.outbox.jdbc.internal.HeadersJsonWriter;
 import io.github.lobofoltran.outbox.jdbc.internal.UuidV7Generator;
 import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialect;
+import io.github.lobofoltran.outbox.jdbc.spi.OutboxInsert;
 import io.github.lobofoltran.outbox.jdbc.spi.TableRef;
 
 import org.slf4j.Logger;
@@ -39,9 +38,9 @@ import org.slf4j.LoggerFactory;
  * OutboxDialectProvider} (registered via {@link ServiceLoader}).
  *
  * <p>The class is thread-safe; the dialect is resolved lazily under a double-checked volatile field
- * so the hot path stays lock-free after the first publish. Every publish/publishAll call uses a
- * fresh {@link PreparedStatement} obtained from a caller-supplied {@link Connection}. {@code
- * JdbcOutbox} never closes the connection: that is the caller's responsibility (Spring's
+ * so the hot path stays lock-free after the first publish. Every publish/publishAll call asks the
+ * dialect for a fresh {@link OutboxInsert} handle against the caller-supplied {@link Connection}.
+ * {@code JdbcOutbox} never closes the connection: that is the caller's responsibility (Spring's
  * transaction manager, the caller's try-with-resources block, etc.).
  *
  * <p>Construct via {@link #builder()}.
@@ -97,24 +96,14 @@ public final class JdbcOutbox implements Outbox {
             Connection connection = connectionSupplier.get();
             requireManualTransaction(connection);
             OutboxDialect resolved = resolveDialect(connection);
-            String sql = resolved.insertSql(table);
 
-            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            try (OutboxInsert insert = resolved.prepareInsert(connection, table)) {
                 for (OutboxEvent event : batch) {
                     UUID id = event.id() != null ? event.id() : idGenerator.generate(clock);
-                    String headersJson = HeadersJsonWriter.toJson(event.headers());
-                    resolved.bindId(statement, 1, id);
-                    statement.setString(2, event.aggregateType());
-                    statement.setString(3, event.aggregateId());
-                    statement.setString(4, event.eventType());
-                    statement.setBytes(5, event.payload());
-                    statement.setString(6, event.contentType());
-                    resolved.bindHeaders(statement, 7, headersJson);
-                    resolved.bindOptionalString(statement, 8, event.destination());
-                    resolved.bindTimestamp(statement, 9, event.occurredAt());
-                    statement.addBatch();
+                    insert.bind(event, id);
+                    insert.addBatch();
                 }
-                statement.executeBatch();
+                insert.executeBatch();
             }
             LOG.debug("Persisted {} outbox event(s) in one batch", batch.size());
         } catch (SQLException ex) {
