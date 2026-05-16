@@ -65,6 +65,11 @@ generic id like `github` because Maven matches `<server>` to `<repository>`
 strictly by id, and a generic name will collide with any other GitHub Packages
 repo you consume.
 
+**Do not paste the raw PAT into `settings.xml`.** Reference an environment
+variable instead and export it from a vault-backed shell init (1Password CLI,
+`pass`, `gh auth token`, …). See the [root README](../../README.md#1-configure-the-github-packages-repository)
+for the full rationale and the encrypted-password alternative.
+
 `~/.m2/settings.xml`:
 
 ```xml
@@ -72,11 +77,17 @@ repo you consume.
     <servers>
         <server>
             <id>lobofoltran-outbox</id>
-            <username>YOUR_GITHUB_USERNAME</username>
-            <password>YOUR_GITHUB_PAT_WITH_read:packages</password>
+            <username>${env.GITHUB_USERNAME}</username>
+            <password>${env.GITHUB_TOKEN}</password>
         </server>
     </servers>
 </settings>
+```
+
+```sh
+export GITHUB_USERNAME="your-github-handle"
+export GITHUB_TOKEN="$(gh auth token)"   # PAT with read:packages
+chmod 600 ~/.m2/settings.xml
 ```
 
 `pom.xml` (in the consuming project):

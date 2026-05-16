@@ -97,19 +97,52 @@ The library ships eight Maven modules:
 
 ### 1. Configure the GitHub Packages repository
 
-Artifacts are published to GitHub Packages, which requires authentication even for public packages. Add the following to your `~/.m2/settings.xml`:
+Artifacts are published to GitHub Packages, which requires authentication even for public packages. **Never paste a raw PAT into `~/.m2/settings.xml`** — that file is read by every Maven invocation and is a frequent exfiltration target (malicious post-install hooks, shared dev machines, accidental dotfile commits). Use one of the two options below.
+
+#### Option A (recommended) — environment variables sourced from a vault
+
+Reference environment variables from `settings.xml` so the file itself contains no secret:
 
 ```xml
 <settings>
   <servers>
     <server>
       <id>github-lobofoltran</id>
-      <username>YOUR_GITHUB_USERNAME</username>
-      <password>YOUR_GITHUB_PAT_WITH_read:packages</password>
+      <username>${env.GITHUB_USERNAME}</username>
+      <password>${env.GITHUB_TOKEN}</password>
     </server>
   </servers>
 </settings>
 ```
+
+Then export the variables from a vault-backed shell init (1Password CLI, `pass`, `gh auth token`, etc.). For example, if you already authenticate with `gh`:
+
+```sh
+export GITHUB_USERNAME="your-github-handle"
+export GITHUB_TOKEN="$(gh auth token)"   # PAT with read:packages
+```
+
+Tighten the file permissions for hygiene even though no secret lives there:
+
+```sh
+chmod 600 ~/.m2/settings.xml
+```
+
+#### Option B — Maven master password encryption
+
+If you cannot rely on a vault-backed shell, encrypt the PAT with Maven's master-password mechanism. Create a master password and store it in `~/.m2/settings-security.xml` (mode `0600`), then encrypt the PAT and paste only the cipher text into `settings.xml`:
+
+```sh
+mvn --encrypt-master-password        # → write to ~/.m2/settings-security.xml
+mvn --encrypt-password                # → paste cipher text as <password> in settings.xml
+chmod 600 ~/.m2/settings.xml ~/.m2/settings-security.xml
+```
+
+See the [Maven password encryption guide](https://maven.apache.org/guides/mini/guide-encryption.html) for the exact file format.
+
+#### CI
+
+CI uses the runner-provided `GITHUB_TOKEN` injected as an environment variable; this project's workflows never write `settings.xml` to disk. Do not replicate the contributor setup on a runner.
 
 Then in your project's `pom.xml`:
 
