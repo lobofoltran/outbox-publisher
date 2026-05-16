@@ -7,6 +7,7 @@ package io.github.lobofoltran.outbox.spring;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiPredicate;
 import javax.sql.DataSource;
 
@@ -19,10 +20,11 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -83,18 +85,23 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
  * Spring bean if present, falling back to {@link GlobalOpenTelemetry#get()} (which is what {@code
  * opentelemetry-sdk-extension-autoconfigure} and the OpenTelemetry Java Agent populate).
  *
+ * <p>When {@code metrics.enabled} stays at its default ({@code true}) but no {@link MeterRegistry}
+ * bean is visible at {@link Outbox} post-processing time, the auto-config logs a one-shot {@code
+ * WARN} naming the missed decorator and listing the two remediations (register a registry, or set
+ * {@code metrics.enabled=false}). The metrics decorator is silently skipped only when the adopter
+ * has explicitly opted out via the property. Tracing has no equivalent warning because it always
+ * falls back to the no-op global SDK.
+ *
  * <h2>Autoconfig ordering</h2>
  *
- * <p>The nested {@code MetricsConfiguration} and {@code TracingConfiguration} use
- * {@code @ConditionalOnBean(MeterRegistry.class)} and
- * {@code @ConditionalOnBean(OpenTelemetry.class)} respectively. Those beans are contributed by
- * other autoconfigurations (Micrometer's {@code MetricsAutoConfiguration} / {@code
- * SimpleMetricsExportAutoConfiguration} / {@code PrometheusMetricsExportAutoConfiguration}, and
- * OpenTelemetry's {@code OpenTelemetryAutoConfiguration}). Spring Boot evaluates
- * {@code @ConditionalOnBean} <em>once</em>, at the time the enclosing autoconfig is considered — so
- * we must declare an explicit "after" relationship to ensure those bean-producing autoconfigs have
- * already run when our nested configurations are evaluated. Otherwise the decorators silently fail
- * to register and {@code /actuator/beans} shows only the bare {@link JdbcOutbox}.
+ * <p>The nested {@code MetricsConfiguration} declares an explicit "after" relationship to the
+ * Micrometer autoconfigurations that contribute {@link MeterRegistry} beans ({@code
+ * MetricsAutoConfiguration} / {@code SimpleMetricsExportAutoConfiguration} / {@code
+ * PrometheusMetricsExportAutoConfiguration}). This ordering ensures the registry bean is already
+ * available when our {@link BeanPostProcessor} starts wrapping {@link Outbox} beans, so the runtime
+ * {@link ObjectProvider#getIfAvailable()} probe inside the BPP resolves the registry rather than
+ * racing the autoconfig that creates it. The tracing entry below was kept for the same parity
+ * reason even though tracing no longer participates in {@code @ConditionalOnBean}.
  *
  * <p>The autoconfig FQNs are referenced via {@code afterName} (string form) rather than {@code
  * after} (class literal) because {@code outbox-spring} must not compile-depend on the optional
@@ -161,11 +168,13 @@ public class OutboxAutoConfiguration {
 
     /**
      * Wraps every {@link Outbox} bean in the context with a {@link MeteredOutbox} when Micrometer
-     * is on the classpath and a {@link MeterRegistry} is available.
+     * is on the classpath. The {@link MeterRegistry} bean is resolved lazily inside the BPP so that
+     * — unlike a {@code @ConditionalOnBean} gate that drops the entire config silently — an adopter
+     * who sets {@code metrics.enabled=true} (the default) but forgets to register a {@link
+     * MeterRegistry} bean still gets an actionable {@code WARN} at startup.
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass({MeterRegistry.class, MeteredOutbox.class})
-    @ConditionalOnBean(MeterRegistry.class)
     @ConditionalOnProperty(
             prefix = "io.github.lobofoltran.outbox.metrics",
             name = "enabled",
@@ -199,8 +208,12 @@ public class OutboxAutoConfiguration {
          */
         static final class MetricsBeanPostProcessor implements BeanPostProcessor, Ordered {
 
+            private static final Logger log =
+                    LoggerFactory.getLogger(MetricsBeanPostProcessor.class);
+
             private final ObjectProvider<MeterRegistry> registryProvider;
             private final ObjectProvider<OutboxProperties> propertiesProvider;
+            private final AtomicBoolean missingRegistryWarned = new AtomicBoolean(false);
 
             MetricsBeanPostProcessor(
                     ObjectProvider<MeterRegistry> registryProvider,
@@ -212,14 +225,33 @@ public class OutboxAutoConfiguration {
             @Override
             public Object postProcessAfterInitialization(Object bean, String name) {
                 if (bean instanceof Outbox outbox && !(bean instanceof MeteredOutbox)) {
+                    MeterRegistry registry = registryProvider.getIfAvailable();
+                    if (registry == null) {
+                        warnMissingRegistryOnce();
+                        return bean;
+                    }
                     OutboxProperties.Metrics metrics = propertiesProvider.getObject().metrics();
                     return new MeteredOutbox(
                             outbox,
-                            registryProvider.getObject(),
+                            registry,
                             buildPredicate(metrics.eventTypeAllowlist()),
                             metrics.tagFallback());
                 }
                 return bean;
+            }
+
+            private void warnMissingRegistryOnce() {
+                if (missingRegistryWarned.compareAndSet(false, true)) {
+                    log.warn(
+                            "io.github.lobofoltran.outbox.metrics.enabled=true but no MeterRegistry"
+                                + " bean was visible to OutboxAutoConfiguration at Outbox"
+                                + " post-processing time — MeteredOutbox decorator will NOT be"
+                                + " applied. Register a MeterRegistry bean (typically via"
+                                + " spring-boot-starter-actuator plus a Micrometer registry such as"
+                                + " micrometer-registry-prometheus), or set"
+                                + " io.github.lobofoltran.outbox.metrics.enabled=false to silence"
+                                + " this warning.");
+                }
             }
 
             @Override

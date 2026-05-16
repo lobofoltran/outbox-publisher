@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
@@ -21,6 +22,10 @@ import io.github.lobofoltran.outbox.jdbc.JdbcOutbox;
 import io.github.lobofoltran.outbox.micrometer.MeteredOutbox;
 import io.github.lobofoltran.outbox.otel.TracedOutbox;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.opentelemetry.api.OpenTelemetry;
@@ -28,6 +33,7 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration;
 import org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration;
@@ -39,6 +45,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 
 class OutboxAutoConfigurationTest {
+
+    private static final String METRICS_BPP_LOGGER =
+            "io.github.lobofoltran.outbox.spring.OutboxAutoConfiguration"
+                    + "$MetricsConfiguration$MetricsBeanPostProcessor";
 
     // Default the shared runner with tracing disabled. After the DEBT-03 fix, the TracedOutbox
     // BPP is no longer gated on the presence of an OpenTelemetry bean (it falls back to
@@ -166,13 +176,54 @@ class OutboxAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("leaves the Outbox bean bare when no MeterRegistry is in the context")
-    void does_not_wrap_when_no_meter_registry() {
-        runner.run(
-                context -> {
-                    assertThat(context).hasSingleBean(Outbox.class);
-                    assertThat(context.getBean(Outbox.class)).isNotInstanceOf(MeteredOutbox.class);
-                });
+    @DisplayName(
+            "leaves the Outbox bean bare and logs a one-shot WARN when no MeterRegistry is in"
+                    + " the context but metrics are enabled (default)")
+    void warns_and_skips_when_metrics_enabled_but_no_meter_registry() {
+        ListAppender<ILoggingEvent> appender = attachAppender(METRICS_BPP_LOGGER);
+        try {
+            runner.withUserConfiguration(TwoUserOutboxesConfig.class)
+                    .run(
+                            context ->
+                                    assertThat(context.getBeansOfType(Outbox.class))
+                                            .hasSize(2)
+                                            .allSatisfy(
+                                                    (n, o) ->
+                                                            assertThat(o)
+                                                                    .isNotInstanceOf(
+                                                                            MeteredOutbox.class)));
+            List<ILoggingEvent> warns =
+                    appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
+            assertThat(warns)
+                    .singleElement()
+                    .satisfies(
+                            e ->
+                                    assertThat(e.getFormattedMessage())
+                                            .contains(
+                                                    "io.github.lobofoltran.outbox.metrics.enabled=true",
+                                                    "MeteredOutbox decorator will NOT be applied",
+                                                    "io.github.lobofoltran.outbox.metrics.enabled=false"));
+        } finally {
+            detachAppender(METRICS_BPP_LOGGER, appender);
+        }
+    }
+
+    @Test
+    @DisplayName(
+            "does not emit the missing-MeterRegistry WARN when metrics.enabled=false even if"
+                    + " no MeterRegistry is present")
+    void no_warn_when_metrics_disabled() {
+        ListAppender<ILoggingEvent> appender = attachAppender(METRICS_BPP_LOGGER);
+        try {
+            runner.withPropertyValues("io.github.lobofoltran.outbox.metrics.enabled=false")
+                    .run(
+                            context ->
+                                    assertThat(context.getBean(Outbox.class))
+                                            .isNotInstanceOf(MeteredOutbox.class));
+            assertThat(appender.list).isEmpty();
+        } finally {
+            detachAppender(METRICS_BPP_LOGGER, appender);
+        }
     }
 
     @Test
@@ -314,6 +365,11 @@ class OutboxAutoConfigurationTest {
                                 OutboxAutoConfiguration.class))
                 .withPropertyValues("io.github.lobofoltran.outbox.tracing.enabled=false")
                 .withBean(DataSource.class, () -> mock(DataSource.class))
+                // Disable tracing so the bean isn't wrapped by TracedOutbox on top of
+                // MeteredOutbox — this test asserts the metrics regression fix specifically,
+                // and after the DEBT-03 fallback to GlobalOpenTelemetry tracing is otherwise
+                // always-on, which would clobber the outer-type assertion below.
+                .withPropertyValues("io.github.lobofoltran.outbox.tracing.enabled=false")
                 .run(
                         context -> {
                             assertThat(context).hasSingleBean(MeterRegistry.class);
@@ -396,6 +452,20 @@ class OutboxAutoConfigurationTest {
                             assertThat(seenBuilder.get()).isNotNull();
                             assertThat(context).hasSingleBean(Outbox.class);
                         });
+    }
+
+    private static ListAppender<ILoggingEvent> attachAppender(String loggerName) {
+        Logger logger = (Logger) LoggerFactory.getLogger(loggerName);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        return appender;
+    }
+
+    private static void detachAppender(String loggerName, ListAppender<ILoggingEvent> appender) {
+        Logger logger = (Logger) LoggerFactory.getLogger(loggerName);
+        logger.detachAppender(appender);
+        appender.stop();
     }
 
     private static OpenTelemetry stubOpenTelemetry() {
