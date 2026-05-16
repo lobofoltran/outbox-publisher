@@ -31,13 +31,19 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
-      - name: Deploy signed artifacts to GitHub Packages
+      - name: Deploy signed artifacts to GitHub Packages (with aggregate SBOM)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./mvnw -B -ntp -Prelease -DskipTests deploy
+        # `makeAggregateBom` writes target/bom.json + target/bom.xml at the reactor
+        # root before `deploy` so the CycloneDX SBOM is reproducible alongside the
+        # signed JARs. Plugin version is pinned via the parent's <pluginManagement>.
+        run: |
+          ./mvnw -B -ntp -Prelease -DskipTests \
+            org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom \
+            deploy
 
-      - name: Attach signed JARs to the GitHub Release
+      - name: Attach signed JARs and SBOM to the GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           files: |
@@ -47,5 +53,7 @@ jobs:
             **/target/*-sources.jar.asc
             **/target/*-javadoc.jar
             **/target/*-javadoc.jar.asc
+            target/bom.json
+            target/bom.xml
             docs/security/ci-pubkey.asc
           fail_on_unmatched_files: false

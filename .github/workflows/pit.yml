@@ -13,6 +13,10 @@ jobs:
   pit:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Outer-job continue-on-error keeps PRs unblocked (PIT is nightly-only),
+    # while still leaving a red X on the run page and triggering GitHub's
+    # default failure email when the mutation floor is breached.
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -24,10 +28,55 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Mutation testing
-        # PIT failures must not break the schedule run; the report itself is the deliverable.
-        continue-on-error: true
-        run: ./mvnw -B -ntp -Ppit test
+      - name: Mutation testing (with floor)
+        # `mutationThreshold=85` matches the lowest per-module PIT floor
+        # documented in AGENTS.md (outbox-core ≥ 85%). PIT will fail the build
+        # if the aggregate score drops below 85% — the outer `continue-on-error`
+        # ensures the run still completes and uploads its report.
+        run: >-
+          ./mvnw -B -ntp -Ppit test
+          -Dmutation.threshold=85
+          -DfailWhenNoMutations=false
+
+      - name: Summarize PIT score
+        if: always()
+        # Walks every reactor module's mutations.xml (PIT XML output) and sums
+        # KILLED vs total mutations to compute a single aggregate score, which
+        # is posted to the Job Summary regardless of pass/fail.
+        run: |
+          set -euo pipefail
+          {
+            echo "## PIT mutation summary"
+            echo
+            echo "| module | killed | total | score |"
+            echo "| --- | ---: | ---: | ---: |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          total_killed=0
+          total_all=0
+          shopt -s globstar nullglob
+          for f in **/target/pit-reports/**/mutations.xml; do
+            module=$(echo "$f" | awk -F/ '{print $1}')
+            killed=$(grep -c 'status="KILLED"' "$f" || true)
+            all=$(grep -c '<mutation ' "$f" || true)
+            if [ "$all" -gt 0 ]; then
+              score=$(awk -v k="$killed" -v a="$all" 'BEGIN{printf "%.1f", (k/a)*100}')
+            else
+              score="n/a"
+            fi
+            echo "| $module | $killed | $all | ${score}% |" >> "$GITHUB_STEP_SUMMARY"
+            total_killed=$((total_killed + killed))
+            total_all=$((total_all + all))
+          done
+          if [ "$total_all" -gt 0 ]; then
+            agg=$(awk -v k="$total_killed" -v a="$total_all" 'BEGIN{printf "%.1f", (k/a)*100}')
+          else
+            agg="n/a"
+          fi
+          {
+            echo "| **aggregate** | **${total_killed}** | **${total_all}** | **${agg}%** |"
+            echo
+            echo "Floor: **85%** (lowest per-module PIT target in AGENTS.md)."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload PIT report
         if: always()
