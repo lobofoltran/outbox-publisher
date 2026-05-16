@@ -59,33 +59,26 @@ public final class DialectAutoDetector {
      * unchanged; ties are broken by discovery order, which is deterministic given the cascade.
      */
     public static DialectAutoDetector usingServiceLoader() {
-        ClassLoader libraryLoader = OutboxDialect.class.getClassLoader();
-        ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-        ClassLoader systemLoader = ClassLoader.getSystemClassLoader();
+        List<ClassLoader> candidates = new ArrayList<>(3);
+        candidates.add(OutboxDialect.class.getClassLoader());
+        candidates.add(Thread.currentThread().getContextClassLoader());
+        candidates.add(ClassLoader.getSystemClassLoader());
 
         List<OutboxDialectProvider> providers = new ArrayList<>();
-        Set<Class<?>> seen = new HashSet<>();
-        addProviders(providers, seen, libraryLoader);
-        if (contextLoader != null && contextLoader != libraryLoader) {
-            addProviders(providers, seen, contextLoader);
-        }
-        if (systemLoader != null
-                && systemLoader != libraryLoader
-                && systemLoader != contextLoader) {
-            addProviders(providers, seen, systemLoader);
-        }
-        return new DialectAutoDetector(providers);
-    }
-
-    private static void addProviders(
-            List<OutboxDialectProvider> providers, Set<Class<?>> seen, ClassLoader classLoader) {
-        ServiceLoader<OutboxDialectProvider> loader =
-                ServiceLoader.load(OutboxDialectProvider.class, classLoader);
-        for (OutboxDialectProvider provider : loader) {
-            if (seen.add(provider.getClass())) {
-                providers.add(provider);
+        Set<Class<?>> seenProviders = new HashSet<>();
+        Set<ClassLoader> seenLoaders = new HashSet<>();
+        for (ClassLoader classLoader : candidates) {
+            if (classLoader == null || !seenLoaders.add(classLoader)) {
+                continue;
+            }
+            for (OutboxDialectProvider provider :
+                    ServiceLoader.load(OutboxDialectProvider.class, classLoader)) {
+                if (seenProviders.add(provider.getClass())) {
+                    providers.add(provider);
+                }
             }
         }
+        return new DialectAutoDetector(providers);
     }
 
     /**

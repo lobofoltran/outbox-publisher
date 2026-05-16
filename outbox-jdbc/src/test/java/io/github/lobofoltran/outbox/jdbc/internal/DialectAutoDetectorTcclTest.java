@@ -39,6 +39,20 @@ class DialectAutoDetectorTcclTest {
             "META-INF/services/io.github.lobofoltran.outbox.jdbc.spi.OutboxDialectProvider";
 
     @Test
+    void tolerates_null_thread_context_class_loader() {
+        // Belt-and-suspenders: Thread.getContextClassLoader() may return null when no TCCL has
+        // been set. The cascade must skip nulls rather than NPE, and still discover the bundled
+        // PostgresDialectProvider via the library's own class loader.
+        ClassLoader savedTccl = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(null);
+            assertThat(DialectAutoDetector.usingServiceLoader()).isNotNull();
+        } finally {
+            Thread.currentThread().setContextClassLoader(savedTccl);
+        }
+    }
+
+    @Test
     void discovers_provider_only_visible_via_tccl(@TempDir Path tempDir) throws Exception {
         Path servicesFile = tempDir.resolve(SERVICES_RESOURCE);
         Files.createDirectories(servicesFile.getParent());
