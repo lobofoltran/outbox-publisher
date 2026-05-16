@@ -11,7 +11,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import io.github.lobofoltran.outbox.Outbox;
@@ -20,10 +22,16 @@ import io.github.lobofoltran.outbox.OutboxException;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.TextMapGetter;
+import io.opentelemetry.context.propagation.TextMapPropagator;
+import io.opentelemetry.context.propagation.TextMapSetter;
 import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.testing.junit5.OpenTelemetryExtension;
 import io.opentelemetry.sdk.trace.data.SpanData;
@@ -51,7 +59,14 @@ class TracedOutboxTest {
     void delegates_publish_to_wrapped_outbox() {
         OutboxEvent event = event("Order", "OrderPlaced", "orders.events");
         traced.publish(event);
-        assertThat(delegate.captured).isEqualTo(event);
+        // The decorator injects trace-context headers, so the captured event is not byte-equal to
+        // the input — but every identity-bearing field must still match.
+        assertThat(delegate.captured.id()).isEqualTo(event.id());
+        assertThat(delegate.captured.aggregateType()).isEqualTo(event.aggregateType());
+        assertThat(delegate.captured.aggregateId()).isEqualTo(event.aggregateId());
+        assertThat(delegate.captured.eventType()).isEqualTo(event.eventType());
+        assertThat(delegate.captured.destination()).isEqualTo(event.destination());
+        assertThat(delegate.captured.occurredAt()).isEqualTo(event.occurredAt());
     }
 
     @Test
@@ -84,7 +99,11 @@ class TracedOutboxTest {
 
         traced.publish(event);
 
-        assertThat(delegate.captured).isSameAs(event);
+        // The decorator augments headers with trace context, so the captured event is a fresh
+        // copy — id() stays null and identity-bearing fields are preserved.
+        assertThat(delegate.captured.id()).isNull();
+        assertThat(delegate.captured.aggregateType()).isEqualTo(event.aggregateType());
+        assertThat(delegate.captured.eventType()).isEqualTo(event.eventType());
         SpanData span = singleSpan();
         assertThat(span.getAttributes().get(TracedOutbox.ATTR_MESSAGING_MESSAGE_ID)).isNull();
         assertThat(span.getAttributes().get(TracedOutbox.ATTR_OUTBOX_AGGREGATE_TYPE))
@@ -148,7 +167,10 @@ class TracedOutboxTest {
 
         traced.publishAll(events);
 
-        assertThat(delegate.batchCaptured).containsExactlyElementsOf(events);
+        // The decorator rewrites each event to add trace-context headers; identity is preserved.
+        assertThat(delegate.batchCaptured).hasSize(events.size());
+        assertThat(delegate.batchCaptured.stream().map(OutboxEvent::id).toList())
+                .containsExactlyElementsOf(events.stream().map(OutboxEvent::id).toList());
 
         SpanData span = singleSpan();
         assertThat(span.getName()).isEqualTo("outbox publish_batch");
@@ -238,6 +260,168 @@ class TracedOutboxTest {
         events.add(event("Order", "OrderPlaced", null));
         events.add(null);
         assertThatNullPointerException().isThrownBy(() -> traced.publishAll(events));
+    }
+
+    @Test
+    void publish_injects_traceparent_into_event_headers() {
+        Span outer = tracer.spanBuilder("outer").startSpan();
+        try (Scope ignored = outer.makeCurrent()) {
+            traced.publish(event("Order", "OrderPlaced", "orders.events"));
+        } finally {
+            outer.end();
+        }
+
+        Map<String, String> headers = delegate.captured.headers();
+        assertThat(headers).containsKey("traceparent");
+        // The header must encode the trace id of the publish span, which is the child of `outer`
+        // and therefore shares its trace id.
+        SpanData publishSpan =
+                otel.getSpans().stream()
+                        .filter(s -> s.getName().equals("outbox publish"))
+                        .findFirst()
+                        .orElseThrow();
+        SpanContext extracted = extractSpanContext(headers);
+        assertThat(extracted.getTraceId()).isEqualTo(publishSpan.getTraceId());
+        assertThat(extracted.getSpanId()).isEqualTo(publishSpan.getSpanId());
+    }
+
+    @Test
+    void publish_preserves_caller_supplied_traceparent_header() {
+        // A non-current, syntactically valid traceparent the caller wants to forward verbatim.
+        String callerTraceparent = "00-0123456789abcdef0123456789abcdef-fedcba9876543210-01";
+        OutboxEvent event =
+                OutboxEvent.builder()
+                        .id(UUID.randomUUID())
+                        .aggregateType("Order")
+                        .aggregateId("agg-1")
+                        .eventType("OrderPlaced")
+                        .contentType("application/json")
+                        .payload(new byte[] {1})
+                        .destination("orders.events")
+                        .header("traceparent", callerTraceparent)
+                        .occurredAt(Instant.parse("2026-03-10T08:30:00Z"))
+                        .build();
+
+        Span outer = tracer.spanBuilder("outer").startSpan();
+        try (Scope ignored = outer.makeCurrent()) {
+            traced.publish(event);
+        } finally {
+            outer.end();
+        }
+
+        assertThat(delegate.captured.headers()).containsEntry("traceparent", callerTraceparent);
+    }
+
+    @Test
+    void publish_all_injects_traceparent_into_every_event_in_a_non_singleton_iterable() {
+        OutboxEvent a = event("Order", "OrderPlaced", "orders.events");
+        OutboxEvent b = event("Order", "OrderPlaced", "orders.events");
+        // Single-pass iterable to prove the decorator materializes the batch and still injects
+        // context into each element.
+        Iterable<OutboxEvent> singlePass = List.of(a, b)::iterator;
+
+        Span outer = tracer.spanBuilder("outer").startSpan();
+        try (Scope ignored = outer.makeCurrent()) {
+            traced.publishAll(singlePass);
+        } finally {
+            outer.end();
+        }
+
+        SpanData batchSpan =
+                otel.getSpans().stream()
+                        .filter(s -> s.getName().equals("outbox publish_batch"))
+                        .findFirst()
+                        .orElseThrow();
+        assertThat(delegate.batchCaptured).hasSize(2);
+        for (OutboxEvent captured : delegate.batchCaptured) {
+            assertThat(captured.headers()).containsKey("traceparent");
+            SpanContext extracted = extractSpanContext(captured.headers());
+            assertThat(extracted.getTraceId()).isEqualTo(batchSpan.getTraceId());
+            assertThat(extracted.getSpanId()).isEqualTo(batchSpan.getSpanId());
+        }
+    }
+
+    @Test
+    void custom_propagator_is_used_when_supplied() {
+        TextMapPropagator recording =
+                new TextMapPropagator() {
+                    @Override
+                    public Collection<String> fields() {
+                        return List.of("x-custom-trace");
+                    }
+
+                    @Override
+                    public <C> void inject(Context context, C carrier, TextMapSetter<C> setter) {
+                        setter.set(carrier, "x-custom-trace", "abc123");
+                    }
+
+                    @Override
+                    public <C> Context extract(
+                            Context context, C carrier, TextMapGetter<C> getter) {
+                        return context;
+                    }
+                };
+        TracedOutbox customTraced = new TracedOutbox(delegate, tracer, recording);
+
+        customTraced.publish(event("Order", "OrderPlaced", "orders.events"));
+
+        assertThat(delegate.captured.headers()).containsEntry("x-custom-trace", "abc123");
+        assertThat(delegate.captured.headers()).doesNotContainKey("traceparent");
+    }
+
+    @Test
+    void propagator_that_injects_nothing_leaves_headers_untouched() {
+        // Mirrors the "no current context" case: the propagator writes no entries, so the event
+        // must be forwarded unchanged (headers stay empty, no rebuild needed).
+        TextMapPropagator noop =
+                new TextMapPropagator() {
+                    @Override
+                    public Collection<String> fields() {
+                        return List.of();
+                    }
+
+                    @Override
+                    public <C> void inject(Context context, C carrier, TextMapSetter<C> setter) {
+                        // intentionally empty
+                    }
+
+                    @Override
+                    public <C> Context extract(
+                            Context context, C carrier, TextMapGetter<C> getter) {
+                        return context;
+                    }
+                };
+        TracedOutbox quiet = new TracedOutbox(delegate, tracer, noop);
+        OutboxEvent event = event("Order", "OrderPlaced", "orders.events");
+
+        quiet.publish(event);
+
+        assertThat(delegate.captured).isSameAs(event);
+    }
+
+    @Test
+    void rejects_null_propagator() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> new TracedOutbox(delegate, tracer, null))
+                .withMessageContaining("propagator");
+    }
+
+    private static SpanContext extractSpanContext(Map<String, String> headers) {
+        TextMapGetter<Map<String, String>> getter =
+                new TextMapGetter<>() {
+                    @Override
+                    public Iterable<String> keys(Map<String, String> carrier) {
+                        return carrier.keySet();
+                    }
+
+                    @Override
+                    public String get(Map<String, String> carrier, String key) {
+                        return carrier == null ? null : carrier.get(key);
+                    }
+                };
+        Context extracted =
+                W3CTraceContextPropagator.getInstance().extract(Context.root(), headers, getter);
+        return Span.fromContext(extracted).getSpanContext();
     }
 
     private SpanData singleSpan() {
