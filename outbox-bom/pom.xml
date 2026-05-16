@@ -42,6 +42,11 @@
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
+                <artifactId>outbox-otel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>outbox-schema</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -58,7 +63,7 @@
             <!--
               Smoke test for the BOM. The project under src/it/consumer imports this BOM
               via dependencyManagement and declares every published module without a
-              <version>. If Maven resolves all six artifacts at this BOM's version,
+              <version>. If Maven resolves all seven artifacts at this BOM's version,
               the BOM is doing its job.
 
               The reactor must be installed first so the consumer can resolve the modules

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Smoke test for the outbox-bom: imports the BOM and declares every published
-  module without a <version> element. If Maven resolves all six artifacts at
+  module without a <version> element. If Maven resolves all seven artifacts at
   the project's version, the BOM is doing its job. Driven by maven-invoker-plugin
   during outbox-bom's verify phase.
 -->
@@ -43,6 +43,10 @@
         <dependency>
             <groupId>io.github.lobofoltran</groupId>
             <artifactId>outbox-micrometer</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.lobofoltran</groupId>
+            <artifactId>outbox-otel</artifactId>
         </dependency>
         <dependency>
             <groupId>io.github.lobofoltran</groupId>

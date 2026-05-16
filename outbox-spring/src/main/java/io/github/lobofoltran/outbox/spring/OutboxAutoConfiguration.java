@@ -5,8 +5,11 @@ import javax.sql.DataSource;
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.jdbc.JdbcOutbox;
 import io.github.lobofoltran.outbox.micrometer.MeteredOutbox;
+import io.github.lobofoltran.outbox.otel.TracedOutbox;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -41,6 +44,11 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
  * MeterRegistry} bean exists, every {@link Outbox} bean in the context is wrapped with {@link
  * MeteredOutbox} via a {@link BeanPostProcessor}. The wrapping is opt-out through {@code
  * io.github.lobofoltran.outbox.metrics.enabled=false}.
+ *
+ * <p>When OpenTelemetry and {@link TracedOutbox} are on the classpath and an {@link OpenTelemetry}
+ * bean exists, every {@link Outbox} bean in the context is wrapped with {@link TracedOutbox} via a
+ * {@link BeanPostProcessor}. The wrapping is opt-out through {@code
+ * io.github.lobofoltran.outbox.tracing.enabled=false}.
  */
 @AutoConfiguration(after = DataSourceAutoConfiguration.class)
 @ConditionalOnClass({Outbox.class, JdbcOutbox.class})
@@ -87,6 +95,40 @@ public class OutboxAutoConfiguration {
                 public Object postProcessAfterInitialization(Object bean, String name) {
                     if (bean instanceof Outbox outbox && !(bean instanceof MeteredOutbox)) {
                         return new MeteredOutbox(outbox, registryProvider.getObject());
+                    }
+                    return bean;
+                }
+            };
+        }
+    }
+
+    /**
+     * Wraps every {@link Outbox} bean in the context with a {@link TracedOutbox} when the
+     * OpenTelemetry API is on the classpath and an {@link OpenTelemetry} bean is available.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass({Tracer.class, TracedOutbox.class})
+    @ConditionalOnBean(OpenTelemetry.class)
+    @ConditionalOnProperty(
+            prefix = "io.github.lobofoltran.outbox.tracing",
+            name = "enabled",
+            matchIfMissing = true)
+    static class TracingConfiguration {
+
+        static final String TRACER_INSTRUMENTATION_SCOPE_NAME = "io.github.lobofoltran.outbox";
+
+        @Bean
+        static BeanPostProcessor outboxTracingBeanPostProcessor(
+                ObjectProvider<OpenTelemetry> openTelemetryProvider) {
+            return new BeanPostProcessor() {
+                @Override
+                public Object postProcessAfterInitialization(Object bean, String name) {
+                    if (bean instanceof Outbox outbox && !(bean instanceof TracedOutbox)) {
+                        Tracer tracer =
+                                openTelemetryProvider
+                                        .getObject()
+                                        .getTracer(TRACER_INSTRUMENTATION_SCOPE_NAME);
+                        return new TracedOutbox(outbox, tracer);
                     }
                     return bean;
                 }
