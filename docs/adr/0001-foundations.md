@@ -34,7 +34,7 @@ Each section below states one decision, its rationale, the rejected alternatives
 - Mature records, pattern matching, virtual threads, sealed types — all useful in modeling `OutboxEvent` and the error hierarchy.
 - LTS, so usable for production consumers without forcing an unstable JDK.
 
-**Risks:** newer plugin versions required (JaCoCo 0.8.12+, ErrorProne 2.27+, Surefire 3.2.5+). Mitigation: validated during F1; fallback to Java 21 documented as Plan B in ROADMAP.
+**Risks:** newer plugin versions required (JaCoCo 0.8.12+, ErrorProne 2.27+, Surefire 3.2.5+). Mitigation: validated during the build setup; Java 21 remains a viable fallback.
 
 **Rejected:** Java 17 (older runtime, no virtual threads at scale), Java 21 (held in reserve as fallback).
 
@@ -196,6 +196,5 @@ Each section below states one decision, its rationale, the rejected alternatives
 
 ## Links
 
-- Implements `ROADMAP.md` phase **F0 — Governance bootstrap**.
 - Operationalizes `AGENTS.md > Locked decisions`, `AGENTS.md > Coding standards`, `AGENTS.md > Tests`, `AGENTS.md > CI/CD`.
 - Future related ADRs: ADR-0002 (headers serialization), ADR-0003 (Maven Central migration trigger), ADR-0004 (metrics cardinality policy).

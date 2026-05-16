@@ -4,7 +4,6 @@
 # Default: everything is owned by the project lead.
 *                       @lobofoltran
 
-# Architecture decisions and the roadmap require explicit lead review.
+# Architecture decisions and the agent rules require explicit lead review.
 /docs/adr/              @lobofoltran
-/ROADMAP.md             @lobofoltran
 /AGENTS.md              @lobofoltran

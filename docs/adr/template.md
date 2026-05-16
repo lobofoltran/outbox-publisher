@@ -49,4 +49,3 @@ Chosen option: "Option X", because <one-sentence justification>.
 ## Links
 
 - Related to ADR-NNNN
-- Implements [`ROADMAP.md`](../../ROADMAP.md) phase F?

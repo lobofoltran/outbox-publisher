@@ -8,12 +8,6 @@ The full rule set lives in AGENTS.md; this template only captures the per-PR sig
 
 <!-- One paragraph: what changes and why. Link to the issue if there is one. -->
 
-## Roadmap stage
-
-<!-- Which phase from ROADMAP.md does this implement? e.g. F1, F5, F6.5. -->
-
-Phase: **F?** — [link to the relevant section](../blob/main/ROADMAP.md)
-
 ## ADR / PRD
 
 <!-- Every code-producing PR links to an ADR. If this PR adds one, list it here. -->
@@ -43,5 +37,5 @@ Implements: `docs/adr/XXXX-name.md`
 - [ ] Spotless applied before commit (`./mvnw -B -ntp -Pquality spotless:apply` then review diff)
 - [ ] Coverage gates honored (`./mvnw -B -ntp -Pquality verify`)
 - [ ] No `var` in production code, no JUnit 4 imports, no reflection in tests
-- [ ] Documentation updated (`README.md` / `AGENTS.md` / `ROADMAP.md` as applicable)
+- [ ] Documentation updated (`README.md` / `AGENTS.md` as applicable)
 - [ ] ADR linked or added

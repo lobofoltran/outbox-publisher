@@ -4,8 +4,6 @@ A Java library that gives your application a single API — `outbox.publish(even
 
 The application **does not know** how those events will be delivered to the outside world. That responsibility belongs to a relay (polling-based, see [`outbox-relay`](#related-projects)) or to a CDC pipeline like Debezium. The boundary between this library and any consumer is the **`outbox` table** — there is no Java coupling between this project and the relay.
 
-> **Status:** early design. No code published yet. This README describes the target shape of the library. See [`ROADMAP.md`](./ROADMAP.md) for the execution plan.
-
 ## Table of contents
 
 - [Why this library](#why-this-library)
@@ -587,4 +585,4 @@ The pure modules (`outbox-core`, `outbox-jdbc`) are JPMS-modular regardless of h
 
 ## License
 
-To be defined.
+Released under the [MIT License](./LICENSE). By contributing, you agree that your contributions are licensed under the same terms.
