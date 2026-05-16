@@ -27,9 +27,27 @@ class OutboxPropertiesTest {
                     assertThat(props.tableName()).isEqualTo("outbox");
                     assertThat(props.schema()).isNull();
                     assertThat(props.metrics().enabled()).isTrue();
+                    assertThat(props.metrics().tagFallback()).isEqualTo("other");
+                    assertThat(props.metrics().eventTypeAllowlist()).isEmpty();
                     assertThat(props.tracing().enabled()).isTrue();
                     assertThat(props.health().enabled()).isTrue();
                 });
+    }
+
+    @Test
+    @DisplayName("metrics cardinality cap: tagFallback and eventTypeAllowlist bind correctly")
+    void cardinality_cap_keys_bind() {
+        runner.withPropertyValues(
+                        "io.github.lobofoltran.outbox.metrics.tag-fallback=BUCKET",
+                        "io.github.lobofoltran.outbox.metrics.event-type-allowlist[0]=OrderPlaced",
+                        "io.github.lobofoltran.outbox.metrics.event-type-allowlist[1]=OrderCancelled")
+                .run(
+                        context -> {
+                            OutboxProperties props = context.getBean(OutboxProperties.class);
+                            assertThat(props.metrics().tagFallback()).isEqualTo("BUCKET");
+                            assertThat(props.metrics().eventTypeAllowlist())
+                                    .containsExactly("OrderPlaced", "OrderCancelled");
+                        });
     }
 
     @Test

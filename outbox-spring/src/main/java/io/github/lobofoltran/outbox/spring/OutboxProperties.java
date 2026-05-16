@@ -5,6 +5,8 @@
  */
 package io.github.lobofoltran.outbox.spring;
 
+import java.util.List;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -40,9 +42,17 @@ public record OutboxProperties(
      *
      * @param enabled when {@code false}, the {@code MeteredOutbox} decorator is not applied even if
      *     Micrometer is on the classpath and a {@code MeterRegistry} bean exists.
+     * @param tagFallback replacement string used when a tag value is rejected by the cardinality
+     *     allowlist. Defaults to {@code "other"}.
+     * @param eventTypeAllowlist closed set of permitted {@code event_type} tag values. When empty
+     *     (default) all values pass through, preserving v0.1 behavior. When non-empty, values not
+     *     in the list are recorded under {@link #tagFallback} instead, capping cardinality.
      * @since 0.2.0
      */
-    public record Metrics(@DefaultValue("true") boolean enabled) {}
+    public record Metrics(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue("other") String tagFallback,
+            @DefaultValue List<String> eventTypeAllowlist) {}
 
     /**
      * Tracing decorator settings. Bound under {@code io.github.lobofoltran.outbox.tracing}.
