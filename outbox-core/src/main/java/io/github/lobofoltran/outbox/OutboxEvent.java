@@ -19,9 +19,15 @@ import java.util.UUID;
  * invariants and makes a defensive copy of {@code headers} and {@code payload}; the corresponding
  * accessors return immutable / fresh copies to keep the record effectively immutable.
  *
- * <p>Field semantics match the columns documented in {@code AGENTS.md > Table contract}. Length
- * limits mirror the SQL column types so callers get an early failure instead of a {@code
- * SQLException} at write time.
+ * <p>Field semantics match the columns documented in {@code AGENTS.md > Table contract}.
+ *
+ * <p><b>Length / width validation</b> is intentionally <em>not</em> enforced here. The record
+ * carries no opinion on the SQL column widths because (a) adopters may legitimately run a
+ * customized schema with wider columns, and (b) different databases measure column width in
+ * characters or in bytes, which is a dialect concern. The dialect SPI (see {@code
+ * OutboxDialect#validate(OutboxEvent)} in {@code outbox-jdbc}) owns those checks and runs them at
+ * publish time so callers still get a fail-fast {@link IllegalArgumentException} before any SQL is
+ * sent.
  *
  * <p><b>Equality:</b> the record uses the default component-wise equality. Because {@code payload}
  * is a {@code byte[]}, two events with identical bytes but distinct array instances are
@@ -30,14 +36,15 @@ import java.util.UUID;
  *
  * @param id optional event identifier. When {@code null}, the implementation generates one (UUIDv7
  *     in {@code outbox-jdbc}).
- * @param aggregateType non-blank, at most 128 characters.
- * @param aggregateId non-blank, at most 128 characters.
- * @param eventType non-blank, at most 128 characters.
- * @param contentType non-blank, at most 64 characters (e.g. {@code application/json}).
+ * @param aggregateType non-blank; per-dialect width limits apply at publish time.
+ * @param aggregateId non-blank; per-dialect width limits apply at publish time.
+ * @param eventType non-blank; per-dialect width limits apply at publish time.
+ * @param contentType non-blank (e.g. {@code application/json}); per-dialect width limits apply at
+ *     publish time.
  * @param payload opaque bytes; the library never deserializes it.
  * @param headers string-to-string metadata; never {@code null}, may be empty.
- * @param destination optional routing hint (topic / exchange / queue), at most 128 characters when
- *     present.
+ * @param destination optional routing hint (topic / exchange / queue); per-dialect width limits
+ *     apply at publish time when present.
  * @param occurredAt the domain timestamp; never {@code null}.
  * @since 0.1.0
  */
@@ -52,12 +59,6 @@ public record OutboxEvent(
         String destination,
         Instant occurredAt) {
 
-    private static final int MAX_AGGREGATE_TYPE = 128;
-    private static final int MAX_AGGREGATE_ID = 128;
-    private static final int MAX_EVENT_TYPE = 128;
-    private static final int MAX_CONTENT_TYPE = 64;
-    private static final int MAX_DESTINATION = 128;
-
     public OutboxEvent {
         Objects.requireNonNull(aggregateType, "aggregateType must not be null");
         Objects.requireNonNull(aggregateId, "aggregateId must not be null");
@@ -71,15 +72,6 @@ public record OutboxEvent(
         requireNonBlank(aggregateId, "aggregateId");
         requireNonBlank(eventType, "eventType");
         requireNonBlank(contentType, "contentType");
-
-        requireMaxLength(aggregateType, "aggregateType", MAX_AGGREGATE_TYPE);
-        requireMaxLength(aggregateId, "aggregateId", MAX_AGGREGATE_ID);
-        requireMaxLength(eventType, "eventType", MAX_EVENT_TYPE);
-        requireMaxLength(contentType, "contentType", MAX_CONTENT_TYPE);
-
-        if (destination != null) {
-            requireMaxLength(destination, "destination", MAX_DESTINATION);
-        }
 
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             Objects.requireNonNull(entry.getKey(), "header keys must not be null");
@@ -136,13 +128,6 @@ public record OutboxEvent(
         }
     }
 
-    private static void requireMaxLength(String value, String name, int max) {
-        if (value.length() > max) {
-            throw new IllegalArgumentException(
-                    name + " must be at most " + max + " characters, got " + value.length());
-        }
-    }
-
     /**
      * Fluent builder for {@link OutboxEvent}.
      *
@@ -187,7 +172,8 @@ public record OutboxEvent(
         }
 
         /**
-         * Sets the aggregate type (non-blank, ≤ 128 chars).
+         * Sets the aggregate type (non-blank). Width limits are enforced by the dialect at publish
+         * time.
          *
          * @param newAggregateType the aggregate type.
          * @return this builder.
@@ -199,7 +185,8 @@ public record OutboxEvent(
         }
 
         /**
-         * Sets the aggregate identifier (non-blank, ≤ 128 chars).
+         * Sets the aggregate identifier (non-blank). Width limits are enforced by the dialect at
+         * publish time.
          *
          * @param newAggregateId the aggregate id.
          * @return this builder.
@@ -211,7 +198,8 @@ public record OutboxEvent(
         }
 
         /**
-         * Sets the event type (non-blank, ≤ 128 chars).
+         * Sets the event type (non-blank). Width limits are enforced by the dialect at publish
+         * time.
          *
          * @param newEventType the event type.
          * @return this builder.
@@ -223,7 +211,8 @@ public record OutboxEvent(
         }
 
         /**
-         * Sets the content type (non-blank, ≤ 64 chars; e.g. {@code application/json}).
+         * Sets the content type (non-blank; e.g. {@code application/json}). Width limits are
+         * enforced by the dialect at publish time.
          *
          * @param newContentType the content type.
          * @return this builder.
@@ -276,7 +265,8 @@ public record OutboxEvent(
         }
 
         /**
-         * Sets the optional destination (topic / exchange / queue), ≤ 128 chars when present.
+         * Sets the optional destination (topic / exchange / queue). Width limits are enforced by
+         * the dialect at publish time.
          *
          * @param newDestination the destination, or {@code null}.
          * @return this builder.

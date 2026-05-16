@@ -101,6 +101,7 @@ public final class JdbcOutbox implements Outbox {
 
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 for (OutboxEvent event : batch) {
+                    resolved.validate(event);
                     UUID id = event.id() != null ? event.id() : idGenerator.generate(clock);
                     String headersJson = HeadersJsonWriter.toJson(event.headers());
                     resolved.bindId(statement, 1, id);
