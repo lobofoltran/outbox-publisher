@@ -7,11 +7,9 @@ package io.github.lobofoltran.outbox.jdbc.spi;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-import java.sql.PreparedStatement;
+import java.sql.Connection;
 import java.sql.SQLException;
-import java.time.Instant;
 import java.util.Set;
-import java.util.UUID;
 
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.OutboxException;
@@ -48,27 +46,7 @@ class OutboxDialectTest {
     private static final class MinimalDialect implements OutboxDialect {
 
         @Override
-        public String insertSql(TableRef table) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void bindId(PreparedStatement statement, int index, UUID id) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void bindHeaders(PreparedStatement statement, int index, String headersJson) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void bindTimestamp(PreparedStatement statement, int index, Instant value) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void bindOptionalString(PreparedStatement statement, int index, String value) {
+        public OutboxInsert prepareInsert(Connection connection, TableRef table) {
             throw new UnsupportedOperationException();
         }
 

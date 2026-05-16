@@ -6,15 +6,11 @@
 package io.github.lobofoltran.outbox.jdbc.dialect.postgres;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Types;
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.EnumSet;
 import java.util.Set;
-import java.util.UUID;
 
 import io.github.lobofoltran.outbox.OutboxConfigurationException;
 import io.github.lobofoltran.outbox.OutboxDataException;
@@ -24,6 +20,7 @@ import io.github.lobofoltran.outbox.OutboxIntegrityException;
 import io.github.lobofoltran.outbox.OutboxTransientException;
 import io.github.lobofoltran.outbox.jdbc.spi.DialectCapability;
 import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialect;
+import io.github.lobofoltran.outbox.jdbc.spi.OutboxInsert;
 import io.github.lobofoltran.outbox.jdbc.spi.TableRef;
 
 /**
@@ -33,7 +30,7 @@ import io.github.lobofoltran.outbox.jdbc.spi.TableRef;
  *   <li>the idempotent {@code INSERT ... ON CONFLICT (id) DO NOTHING} SQL;
  *   <li>the {@code ?::jsonb} cast for the {@code headers} column;
  *   <li>the {@code TIMESTAMP WITH TIMEZONE} binding for {@code occurred_at} (so the database
- *       round-trips a true {@link Instant}, immune to JVM/session timezone changes);
+ *       round-trips a true {@link java.time.Instant}, immune to JVM/session timezone changes);
  *   <li>the SQLState-to-{@link OutboxException} mapping for the sealed exception hierarchy.
  * </ul>
  *
@@ -64,7 +61,12 @@ public final class PostgresDialect implements OutboxDialect {
                     DialectCapability.BATCH_INSERT);
 
     @Override
-    public String insertSql(TableRef table) {
+    public OutboxInsert prepareInsert(Connection connection, TableRef table) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement(insertSql(table));
+        return new PostgresOutboxInsert(statement);
+    }
+
+    private static String insertSql(TableRef table) {
         return "INSERT INTO "
                 + table.qualified()
                 + " ("
@@ -72,39 +74,6 @@ public final class PostgresDialect implements OutboxDialect {
                 + "content_type, headers, destination, occurred_at"
                 + ") VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)"
                 + " ON CONFLICT (id) DO NOTHING";
-    }
-
-    @Override
-    public void bindId(PreparedStatement statement, int index, UUID id) throws SQLException {
-        statement.setObject(index, id);
-    }
-
-    @Override
-    public void bindHeaders(PreparedStatement statement, int index, String headersJson)
-            throws SQLException {
-        statement.setString(index, headersJson);
-    }
-
-    @Override
-    public void bindTimestamp(PreparedStatement statement, int index, Instant value)
-            throws SQLException {
-        // setObject with an OffsetDateTime preserves the absolute instant (UTC offset) in
-        // timestamptz columns, regardless of the JVM default timezone or the JDBC session
-        // timezone.
-        statement.setObject(
-                index,
-                OffsetDateTime.ofInstant(value, ZoneOffset.UTC),
-                Types.TIMESTAMP_WITH_TIMEZONE);
-    }
-
-    @Override
-    public void bindOptionalString(PreparedStatement statement, int index, String value)
-            throws SQLException {
-        if (value == null) {
-            statement.setNull(index, Types.VARCHAR);
-        } else {
-            statement.setString(index, value);
-        }
     }
 
     @Override

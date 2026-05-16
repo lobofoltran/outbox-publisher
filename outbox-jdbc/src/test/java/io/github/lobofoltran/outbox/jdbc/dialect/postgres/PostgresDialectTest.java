@@ -15,27 +15,12 @@ import io.github.lobofoltran.outbox.OutboxException;
 import io.github.lobofoltran.outbox.OutboxIntegrityException;
 import io.github.lobofoltran.outbox.OutboxTransientException;
 import io.github.lobofoltran.outbox.jdbc.spi.DialectCapability;
-import io.github.lobofoltran.outbox.jdbc.spi.TableRef;
 
 import org.junit.jupiter.api.Test;
 
 class PostgresDialectTest {
 
     private final PostgresDialect dialect = new PostgresDialect();
-
-    @Test
-    void insert_sql_uses_jsonb_cast_and_on_conflict_do_nothing() {
-        String sql = dialect.insertSql(new TableRef(null, "outbox"));
-        assertThat(sql).contains("?::jsonb");
-        assertThat(sql).contains("ON CONFLICT (id) DO NOTHING");
-        assertThat(sql).doesNotContain("public.");
-    }
-
-    @Test
-    void insert_sql_qualifies_table_with_schema_when_present() {
-        String sql = dialect.insertSql(new TableRef("app", "outbox"));
-        assertThat(sql).contains("INSERT INTO app.outbox");
-    }
 
     @Test
     void translate_unique_violation_to_integrity_exception() {
