@@ -38,7 +38,7 @@ jobs:
         run: ./mvnw -B -ntp -Prelease -DskipTests deploy
 
       - name: Attach signed JARs to the GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             **/target/*.jar
