@@ -27,6 +27,15 @@
             <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>
         <dependency>
+            <!-- Used for one-shot WARN logging from the metrics BeanPostProcessor when the
+                 MeterRegistry bean is missing despite metrics.enabled=true. Scope `provided`
+                 because Spring Boot already pulls SLF4J transitively at runtime. Version is
+                 managed in the parent POM via ${slf4j.version}. -->
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
