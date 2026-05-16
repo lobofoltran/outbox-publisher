@@ -35,6 +35,7 @@
         <module>outbox-micrometer</module>
         <module>outbox-otel</module>
         <module>outbox-schema</module>
+        <module>outbox-tck</module>
         <module>outbox-bom</module>
     </modules>
 
@@ -141,6 +142,11 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>outbox-otel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>outbox-tck</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

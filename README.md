@@ -77,7 +77,7 @@ Key design decisions:
                   (consumed by a relay or by CDC — out of scope)
 ```
 
-The library ships six Maven modules:
+The library ships eight Maven modules:
 
 | Module | Purpose | Application sees it? |
 | --- | --- | --- |
@@ -87,6 +87,7 @@ The library ships six Maven modules:
 | `outbox-micrometer` | `MeteredOutbox` decorator — Micrometer Timer/Counter on every publish | No (runtime, optional) |
 | `outbox-otel` | `TracedOutbox` decorator — OpenTelemetry `messaging.*` span on every publish | No (runtime, optional) |
 | `outbox-schema` | Example SQL DDL as classpath resources | No (optional) |
+| `outbox-tck` | Technology Compatibility Kit — abstract JUnit 5 contract base for `OutboxDialect` implementations | No (test, only when authoring a new dialect) |
 | `outbox-bom` | Bill of Materials for version management | imported in BOM |
 
 ## Installation
@@ -408,6 +409,35 @@ Consumers obtain `Outbox` either through the Spring Boot autoconfiguration in `o
 #### Dialect SPI
 
 `outbox-jdbc` is database-agnostic; every PostgreSQL-specific decision (idempotent `INSERT ... ON CONFLICT`, `?::jsonb` cast, `TIMESTAMP WITH TIMEZONE` binding, SQLState classification) lives behind an `OutboxDialect` SPI in `io.github.lobofoltran.outbox.jdbc.spi`. The bundled `PostgresDialect` is auto-discovered through `ServiceLoader` on the first publish; pass `.dialect(...)` to the builder to pin one explicitly. See ADR-0013.
+
+#### Writing a new dialect
+
+External authors who want to plug a non-PostgreSQL database into `outbox-jdbc` validate their implementation against the `outbox-tck` Technology Compatibility Kit. The TCK ships an abstract JUnit 5 contract base class in its main JAR (no `classifier=tests`); extend it once, wire your dialect plus a real `DataSource`, and you inherit the full runtime contract — happy-path inserts, autocommit refusal, timezone round-trip, capability-gated idempotency, SQLState classification, and batch atomicity. See ADR-0016 for the full enumeration of contract tests and capability flags.
+
+```xml
+<dependency>
+    <groupId>io.github.lobofoltran</groupId>
+    <artifactId>outbox-tck</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+```java
+@Testcontainers
+class MyDialectContractIT extends OutboxDialectContractTest {
+
+    @Container
+    static final MyDbContainer DB = new MyDbContainer("mydb:1.2");
+
+    @Override protected OutboxDialect dialect() { return new MyDialect(); }
+    @Override protected DataSource    dataSource() { return DB.dataSource(); }
+    @Override protected void applyPublisherSchema(Connection c) throws SQLException {
+        try (Statement s = c.createStatement()) { s.execute(loadDdl()); }
+    }
+}
+```
+
+The canonical example is `PostgresDialectContractIT` inside `outbox-jdbc/src/test/java/.../dialect/postgres/` — it runs as part of this repository's `verify` build and `PostgresDialect` passes 100% of the contract.
 
 #### Builder
 

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.lobofoltran</groupId>
+        <artifactId>outbox-publisher-parent</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>outbox-tck</artifactId>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>Technology Compatibility Kit for OutboxDialect implementations: ships an abstract JUnit 5 contract test base in src/main/java so external dialect authors can extend it as a regular dependency (no classifier=tests).</description>
+
+    <properties>
+        <!-- The contract base lives in src/main/java and is exercised by reference
+             implementations in other modules (PostgresDialectContractIT in outbox-jdbc).
+             This module ships no Java tests of its own, so JaCoCo has nothing to gate
+             on and PIT has nothing to mutate. Both thresholds set to 0.00 with this
+             justification rather than excluding the module from the quality profile. -->
+        <coverage.line.minimum>0.00</coverage.line.minimum>
+        <coverage.branch.minimum>0.00</coverage.branch.minimum>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>outbox-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>outbox-jdbc</artifactId>
+        </dependency>
+
+        <!-- The TCK ships testing tooling as part of its public API: external
+             dialect authors `extends OutboxDialectContractTest` and inherit the
+             JUnit 5 / AssertJ surface. These are deliberately NOT scope=test. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Self-test of the TCK against the bundled PostgreSQL dialect
+             (PostgresDialectContractIT). Strictly test-scope: external dialect
+             implementers consuming this module do not inherit them. -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>outbox-schema</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
