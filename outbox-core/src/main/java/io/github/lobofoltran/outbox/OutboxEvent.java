@@ -118,7 +118,7 @@ public record OutboxEvent(
      * callers (metrics, logging) that need the size and never the bytes.
      *
      * @return the payload length in bytes.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public int payloadSize() {
         return payload.length;

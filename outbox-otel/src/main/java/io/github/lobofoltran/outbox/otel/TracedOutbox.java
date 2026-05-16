@@ -46,7 +46,7 @@ import io.opentelemetry.context.Scope;
  * <p>Instances are thread-safe: the {@link Tracer} contract permits concurrent use, and the
  * decorator holds no mutable state of its own.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public final class TracedOutbox implements Outbox {
 
@@ -93,7 +93,7 @@ public final class TracedOutbox implements Outbox {
      *
      * @param delegate the underlying {@link Outbox}; never {@code null}.
      * @param tracer the {@link Tracer} to record spans on; never {@code null}.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public TracedOutbox(Outbox delegate, Tracer tracer) {
         this.delegate = Objects.requireNonNull(delegate, "delegate must not be null");
@@ -113,7 +113,7 @@ public final class TracedOutbox implements Outbox {
      *
      * @param delegate the underlying {@link Outbox}; never {@code null}.
      * @param otel the {@link OpenTelemetry} used to obtain a {@link Tracer}; never {@code null}.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public TracedOutbox(Outbox delegate, OpenTelemetry otel) {
         this(

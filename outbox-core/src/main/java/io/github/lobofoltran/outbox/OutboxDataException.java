@@ -19,7 +19,7 @@ import java.io.Serial;
  * <p>Dialects classify SQLState classes {@code 22} (data exception) and {@code 21} (cardinality
  * violation) as data failures.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public final class OutboxDataException extends OutboxException {
 
@@ -29,7 +29,7 @@ public final class OutboxDataException extends OutboxException {
      * Creates a new {@code OutboxDataException} with the given message.
      *
      * @param message human-readable description of the failure.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public OutboxDataException(String message) {
         super(message);
@@ -40,7 +40,7 @@ public final class OutboxDataException extends OutboxException {
      *
      * @param message human-readable description of the failure.
      * @param cause the underlying cause.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public OutboxDataException(String message, Throwable cause) {
         super(message, cause);

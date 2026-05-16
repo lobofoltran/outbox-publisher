@@ -279,7 +279,7 @@ public final class JdbcOutbox implements Outbox {
          *
          * @param newDialect the dialect; never {@code null}.
          * @return this builder.
-         * @since 0.2.0
+         * @since 0.1.0
          */
         public Builder dialect(OutboxDialect newDialect) {
             this.dialect = Objects.requireNonNull(newDialect, "dialect must not be null");

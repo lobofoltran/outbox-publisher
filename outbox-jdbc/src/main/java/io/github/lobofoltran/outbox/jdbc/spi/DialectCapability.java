@@ -13,7 +13,7 @@ package io.github.lobofoltran.outbox.jdbc.spi;
  * <p>This enum is intentionally small — it lists only capabilities that affect observable behavior
  * of the publisher, not every JDBC corner case.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public enum DialectCapability {
 

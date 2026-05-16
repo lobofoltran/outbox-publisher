@@ -16,6 +16,8 @@ import java.util.Map;
  *
  * <p>Output is a single-line JSON object preserving the iteration order of the input map. Callers
  * send the resulting string to PostgreSQL with an explicit {@code ?::jsonb} cast.
+ *
+ * @since 0.1.0
  */
 public final class HeadersJsonWriter {
 
