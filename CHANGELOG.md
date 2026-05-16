@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/). Releases are managed automatically by [release-please](https://github.com/googleapis/release-please).
 
+## [0.4.1](https://github.com/lobofoltran/outbox-publisher/compare/v0.4.0...v0.4.1) (2026-05-16)
+
+
+### Bug Fixes
+
+* **outbox-spring,javadoc:** unblock javadoc:aggregate by naming the automatic module ([#75](https://github.com/lobofoltran/outbox-publisher/issues/75)) ([61e64ac](https://github.com/lobofoltran/outbox-publisher/commit/61e64ac8d15424bd79823a8f14f4a1fe9bdac78c))
+
 ## [0.4.0](https://github.com/lobofoltran/outbox-publisher/compare/v0.3.0...v0.4.0) (2026-05-16)
 
 
