@@ -3,6 +3,9 @@ package io.github.lobofoltran.outbox.jdbc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+
+import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialect;
 
 import org.junit.jupiter.api.Test;
 
@@ -85,6 +88,21 @@ class JdbcOutboxBuilderTest {
                         .schema("public")
                         .tableName("my_outbox_2")
                         .build();
+        assertThat(outbox).isNotNull();
+    }
+
+    @Test
+    void rejects_null_dialect() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> JdbcOutbox.builder().dialect(null))
+                .withMessageContaining("dialect");
+    }
+
+    @Test
+    void accepts_pinned_dialect() {
+        OutboxDialect pinned = mock(OutboxDialect.class);
+        JdbcOutbox outbox =
+                JdbcOutbox.builder().connectionSupplier(connectionSupplier).dialect(pinned).build();
         assertThat(outbox).isNotNull();
     }
 

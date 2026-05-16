@@ -352,6 +352,9 @@ package io.github.lobofoltran.outbox;
 
 public interface Outbox {
     void publish(OutboxEvent event);
+
+    /** Default loops over publish; JDBC and Micrometer override with a true batch path. */
+    default void publishAll(Iterable<OutboxEvent> events) { ... }
 }
 
 public record OutboxEvent(
@@ -386,13 +389,38 @@ JDBC implementation. Internals are **not** exported.
 ```java
 module io.github.lobofoltran.outbox.jdbc {
     requires transitive io.github.lobofoltran.outbox.core;
-    requires java.sql;
+    requires transitive java.sql;
     requires org.slf4j;
-    exports io.github.lobofoltran.outbox.jdbc;
+
+    exports io.github.lobofoltran.outbox.jdbc;      // JdbcOutbox + ConnectionSupplier
+    exports io.github.lobofoltran.outbox.jdbc.spi;  // OutboxDialect SPI
+
+    uses io.github.lobofoltran.outbox.jdbc.spi.OutboxDialectProvider;
+    provides io.github.lobofoltran.outbox.jdbc.spi.OutboxDialectProvider with
+        io.github.lobofoltran.outbox.jdbc.dialect.postgres.PostgresDialectProvider;
 }
 ```
 
-Consumers obtain `Outbox` either through the Spring Boot autoconfiguration in `outbox-spring` or by directly invoking `JdbcOutbox.builder()...build()`. There is no `ServiceLoader` discovery of `Outbox` — `outbox-jdbc` may use `ServiceLoader` internally for future dialect providers, but that is an implementation detail of `outbox-jdbc`, not part of the `outbox-core` contract.
+Consumers obtain `Outbox` either through the Spring Boot autoconfiguration in `outbox-spring` or by directly invoking `JdbcOutbox.builder()...build()`. There is no `ServiceLoader` discovery of `Outbox` itself (see ADR-0009).
+
+#### Dialect SPI
+
+`outbox-jdbc` is database-agnostic; every PostgreSQL-specific decision (idempotent `INSERT ... ON CONFLICT`, `?::jsonb` cast, `TIMESTAMP WITH TIMEZONE` binding, SQLState classification) lives behind an `OutboxDialect` SPI in `io.github.lobofoltran.outbox.jdbc.spi`. The bundled `PostgresDialect` is auto-discovered through `ServiceLoader` on the first publish; pass `.dialect(...)` to the builder to pin one explicitly. See ADR-0013.
+
+#### Builder
+
+```java
+JdbcOutbox.builder()
+    .connectionSupplier(() -> DataSourceUtils.getConnection(dataSource))
+    .schema("public")          // optional
+    .tableName("outbox")        // default: "outbox"
+    .clock(Clock.systemUTC())   // default
+    .idGenerator(uuidV7())      // default
+    .dialect(myDialect)         // optional; auto-detected if unset
+    .build();
+```
+
+The supplier MUST return a connection in `autoCommit=false` mode that participates in the caller's transaction (see ADR-0010). Misconfiguration surfaces as `OutboxConfigurationException` on the first publish.
 
 ### `outbox-spring`
 

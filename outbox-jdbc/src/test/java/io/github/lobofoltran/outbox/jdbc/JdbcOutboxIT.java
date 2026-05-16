@@ -120,7 +120,9 @@ class JdbcOutboxIT extends AbstractPostgresIT {
 
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
-            JdbcOutbox.builder().connectionSupplier(() -> connection).build().publish(event);
+            JdbcOutbox publisher =
+                    JdbcOutbox.builder().connectionSupplier(() -> connection).build();
+            publisher.publish(event);
             connection.commit();
         }
 
@@ -202,7 +204,7 @@ class JdbcOutboxIT extends AbstractPostgresIT {
             JdbcOutbox outbox = JdbcOutbox.builder().connectionSupplier(() -> connection).build();
             assertThatThrownBy(() -> outbox.publish(event))
                     .isInstanceOf(OutboxException.class)
-                    .hasMessageContaining("failed to insert outbox event")
+                    .hasMessageContaining("failed to insert")
                     .hasCauseInstanceOf(SQLException.class);
             connection.rollback();
         }
