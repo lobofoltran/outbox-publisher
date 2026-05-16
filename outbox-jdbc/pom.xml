@@ -25,9 +25,14 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>outbox-core</artifactId>
         </dependency>
+        <!-- SLF4J is API-only at compile time; consumers bring their own version
+             (and binding) so we do not pin one. The version below is the lowest
+             release the code compiles against. See ADR-0001 D7. -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
+            <version>2.0.0</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -63,6 +68,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+            <version>42.7.11</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
