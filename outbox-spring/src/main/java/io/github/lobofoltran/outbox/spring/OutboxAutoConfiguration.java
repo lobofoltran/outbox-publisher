@@ -70,7 +70,7 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
  * {@code - 200}) and runs first, seeing the bare {@link JdbcOutbox}; the tracing BPP carries {@link
  * Ordered#LOWEST_PRECEDENCE} {@code - 100} and runs last, wrapping the already-metered delegate.
  * The effect is that the metric increments and the OpenTelemetry span share the same logical
- * operation: the metric is recorded inside the producer span. See ADR-0017.
+ * operation: the metric is recorded inside the producer span.
  *
  * <p>Both decorators are opt-out via the nested {@link OutboxProperties.Metrics metrics.enabled}
  * and {@link OutboxProperties.Tracing tracing.enabled} switches.
@@ -151,7 +151,8 @@ public class OutboxAutoConfiguration {
          * Decorates {@link Outbox} beans with {@link MeteredOutbox}. Implements {@link Ordered}
          * with {@link Ordered#LOWEST_PRECEDENCE} {@code - 200} so it runs <em>before</em> the
          * tracing BPP (lower order values are invoked first), producing the inner {@code
-         * MeteredOutbox} layer that tracing then wraps. See ADR-0017 and the class javadoc.
+         * MeteredOutbox} layer that tracing then wraps. See the class javadoc for the full
+         * decoration-order rationale.
          *
          * <p>{@link Ordered} is implemented on the BPP class itself rather than via {@code @Order}
          * on the {@code @Bean} factory method because Spring's BPP registration sorts by {@link
@@ -211,7 +212,7 @@ public class OutboxAutoConfiguration {
          *
          * <p>Implements {@link Ordered} with {@link Ordered#LOWEST_PRECEDENCE} {@code - 100} so it
          * runs <em>after</em> the metrics BPP (higher order value is invoked later), wrapping the
-         * already-metered delegate. See ADR-0017.
+         * already-metered delegate.
          */
         static final class TracingBeanPostProcessor implements BeanPostProcessor, Ordered {
 

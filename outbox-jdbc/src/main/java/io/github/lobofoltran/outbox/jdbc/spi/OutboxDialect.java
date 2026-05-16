@@ -79,7 +79,7 @@ public interface OutboxDialect {
     /**
      * Binds an {@link Instant} as a timezone-aware timestamp at the given parameter index. The
      * dialect is expected to preserve UTC instant equality across writer/reader timezone
-     * configurations (see ADR-0005).
+     * configurations.
      *
      * @param statement the prepared statement.
      * @param index 1-based JDBC parameter index.
@@ -101,8 +101,9 @@ public interface OutboxDialect {
             throws SQLException;
 
     /**
-     * Translates a JDBC failure into a typed {@link OutboxException} subtype, following the
-     * SQLState classification documented in ADR-0008.
+     * Translates a JDBC failure into a typed {@link OutboxException} subtype, following a SQLState
+     * classification scheme that maps integrity violations, transient connectivity errors, data
+     * errors, and configuration errors onto the appropriate sealed subtype.
      *
      * @param ex the original {@link SQLException}; never {@code null}.
      * @param contextMessage human-readable context to include in the exception message.

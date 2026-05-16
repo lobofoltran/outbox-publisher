@@ -1,17 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  outbox-publisher plain-JDBC example.
-
-  Pure JDBC + HikariCP. No Spring. Demonstrates:
-    * manual transaction boundary (autoCommit=false, commit/rollback by hand),
-    * dialect auto-detection (no .dialect(...) call on the builder),
-    * rollback semantics: when the business write fails the outbox row is gone
-      because both writes shared the same Connection.
-
-  Build (from the repo root):
-    ./mvnw -B -ntp -DskipTests install
-    mvn -B -ntp -f examples/plain-jdbc/pom.xml verify
--->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -125,8 +112,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
             </plugin>
-            <!-- *IT classes (per the AGENTS.md test layout conventions) run
-                 in the integration-test phase via failsafe. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>

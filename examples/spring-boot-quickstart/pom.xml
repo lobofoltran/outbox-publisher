@@ -1,20 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  outbox-publisher Spring Boot 4 quickstart example.
-
-  This is NOT part of the release reactor and intentionally does not declare
-  the outbox-publisher-parent. It mirrors what a real adopter sees: a plain
-  Spring Boot project that imports outbox-bom from the local m2 repository.
-
-  Build with:
-    # from repo root, install the reactor first
-    ./mvnw -B -ntp -DskipTests install
-    # then build this example against the just-installed BOM
-    mvn -B -ntp -f examples/spring-boot-quickstart/pom.xml verify
-
-  Override the BOM/library version when iterating against a non-default revision:
-    mvn -B -ntp -Doutbox.version=0.2.0-SNAPSHOT -f examples/spring-boot-quickstart/pom.xml verify
--->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -42,8 +26,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Pulls in Spring Boot 4 managed versions for HikariCP, Flyway,
-                 PostgreSQL JDBC driver, JUnit, AssertJ, Testcontainers, etc. -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -89,16 +71,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
-        <!--
-          IMPORTANT (Spring Boot 4): the Flyway autoconfiguration moved to its own
-          starter module. Pulling in only `flyway-core` is no longer enough — the
-          FlywayAutoConfiguration class lives in spring-boot-starter-flyway. Without
-          this starter, the migration scripts under db/migration are silently
-          ignored at startup.
-
-          See examples/spring-boot-quickstart/README.md > "Spring Boot 4 + Flyway"
-          for the full rationale (consumer feedback item #21).
-        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-flyway</artifactId>
@@ -119,8 +91,6 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Provides @ServiceConnection so the Testcontainers Postgres binds
-             to the auto-configured DataSource without manual property tweaks. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-testcontainers</artifactId>
@@ -145,8 +115,6 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
             </plugin>
-            <!-- Integration tests use the *IT suffix (per the AGENTS.md test layout
-                 conventions) so they run in the integration-test phase via failsafe. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>

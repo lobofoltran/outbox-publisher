@@ -14,7 +14,6 @@
     <description>Micrometer decorator that adds Timer and Counter metrics on every publish.</description>
 
     <properties>
-        <!-- Thin decorator; ADR-0001 D10 raises this module to 95/95 line+branch. -->
         <coverage.line.minimum>0.95</coverage.line.minimum>
         <coverage.branch.minimum>0.95</coverage.branch.minimum>
     </properties>
@@ -24,10 +23,6 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>outbox-core</artifactId>
         </dependency>
-        <!-- Micrometer is provided so consumers bring their own version (e.g. the one
-             pinned by their Spring Boot / Micrometer BOM). The version below is the
-             lowest release the decorator compiles against. <optional>true</optional>
-             keeps it from leaking transitively to consumers that did not opt in. -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>

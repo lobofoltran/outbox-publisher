@@ -80,9 +80,6 @@
         <coverage.line.minimum>0.90</coverage.line.minimum>
         <coverage.branch.minimum>0.90</coverage.branch.minimum>
 
-        <!-- Empty default so Surefire's @{surefire.argLine} resolves cleanly when JaCoCo
-             is not active (e.g. under the `pit` profile). Quality activates JaCoCo, which
-             rewrites this property with the agent path before Surefire is invoked. -->
         <surefire.argLine/>
         <failsafe.argLine/>
 
@@ -357,9 +354,6 @@
                             </goals>
                             <configuration>
                                 <propertyName>surefire.argLine</propertyName>
-                                <!-- Unit + integration runs share a single jacoco.exec
-                                     so the bundle gate (`jacoco-check`) sees coverage
-                                     from both test phases. -->
                                 <destFile>${project.build.directory}/jacoco.exec</destFile>
                                 <append>true</append>
                             </configuration>
@@ -399,12 +393,6 @@
                             <outputFormat>HTML</outputFormat>
                             <outputFormat>XML</outputFormat>
                         </outputFormats>
-                        <!--
-                          Defaults reflect the lowest per-module PIT floor in AGENTS.md
-                          (outbox-core ≥ 85%). CI overrides via -Dmutation.threshold=...
-                          and -DfailWhenNoMutations=... so the floor is configurable per
-                          workflow without editing the POM.
-                        -->
                         <mutationThreshold>${mutation.threshold}</mutationThreshold>
                         <failWhenNoMutations>${failWhenNoMutations}</failWhenNoMutations>
                     </configuration>

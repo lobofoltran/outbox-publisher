@@ -36,7 +36,7 @@ import io.micrometer.core.instrument.Timer;
  * </ul>
  *
  * <p>By design, {@code aggregate_id} and {@code destination} are <em>never</em> tagged, to keep
- * metric cardinality bounded — see ADR-0004 for the rationale.
+ * metric cardinality bounded.
  *
  * <p>Instances are thread-safe: the {@link MeterRegistry} contract guarantees concurrent meter
  * registration is safe, and the decorator holds no mutable state of its own.

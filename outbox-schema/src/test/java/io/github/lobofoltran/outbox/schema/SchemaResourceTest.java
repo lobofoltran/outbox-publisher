@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Sentinel test for the SQL contract shipped by {@code outbox-schema}. Catches accidental renames
  * or removals of the resource paths that downstream consumers depend on, and asserts the publisher
- * vs. relay-extension split documented in ADR-0007.
+ * vs. relay-extension split.
  */
 class SchemaResourceTest {
 

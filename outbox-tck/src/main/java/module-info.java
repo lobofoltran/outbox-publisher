@@ -9,7 +9,7 @@
  * a {@link javax.sql.DataSource}, and inherit the full contract suite.
  *
  * <p>The contract base lives in {@code src/main/java} on purpose so it ships in the main JAR (no
- * {@code classifier=tests}). See ADR-0016.
+ * {@code classifier=tests}), making it consumable as a regular {@code test}-scope dependency.
  */
 module io.github.lobofoltran.outbox.tck {
     requires transitive io.github.lobofoltran.outbox.core;
