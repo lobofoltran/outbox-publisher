@@ -19,9 +19,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.health.autoconfigure.contributor.ConditionalOnEnabledHealthIndicator;
+import org.springframework.boot.health.contributor.AbstractHealthIndicator;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 
 /**
@@ -40,15 +43,38 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
  * DataSourceUtils.getConnection(dataSource)} so the INSERT participates in whichever transaction
  * Spring has bound to the current thread.
  *
- * <p>When both Micrometer and {@link MeteredOutbox} are on the classpath and a {@link
- * MeterRegistry} bean exists, every {@link Outbox} bean in the context is wrapped with {@link
- * MeteredOutbox} via a {@link BeanPostProcessor}. The wrapping is opt-out through {@code
- * io.github.lobofoltran.outbox.metrics.enabled=false}.
+ * <h2>Customization</h2>
  *
- * <p>When OpenTelemetry and {@link TracedOutbox} are on the classpath and an {@link OpenTelemetry}
- * bean exists, every {@link Outbox} bean in the context is wrapped with {@link TracedOutbox} via a
- * {@link BeanPostProcessor}. The wrapping is opt-out through {@code
- * io.github.lobofoltran.outbox.tracing.enabled=false}.
+ * <p>Adopters can register one or more {@link JdbcOutboxBuilderCustomizer} beans to tweak the
+ * auto-configured builder (custom {@code IdGenerator}, deterministic {@code Clock}, explicit {@code
+ * OutboxDialect}, …) without having to hand-roll a replacement {@link Outbox} bean. Customizers are
+ * invoked in {@code @Order}-aware sequence, after {@link OutboxProperties} have been applied to the
+ * builder and immediately before {@code build()}.
+ *
+ * <h2>Decoration order</h2>
+ *
+ * <p>When both observability decorators are eligible, the resulting bean stack is:
+ *
+ * <pre>{@code
+ * TracedOutbox(MeteredOutbox(JdbcOutbox))
+ * }</pre>
+ *
+ * <p>This ordering is enforced by both {@link BeanPostProcessor} implementations directly
+ * implementing {@link Ordered}. Spring runs ordered {@code BeanPostProcessor}s with the lowest
+ * order value first, so the metrics BPP carries the lower value ({@link Ordered#LOWEST_PRECEDENCE}
+ * {@code - 200}) and runs first, seeing the bare {@link JdbcOutbox}; the tracing BPP carries {@link
+ * Ordered#LOWEST_PRECEDENCE} {@code - 100} and runs last, wrapping the already-metered delegate.
+ * The effect is that the metric increments and the OpenTelemetry span share the same logical
+ * operation: the metric is recorded inside the producer span. See ADR-0017.
+ *
+ * <p>Both decorators are opt-out via the nested {@link OutboxProperties.Metrics metrics.enabled}
+ * and {@link OutboxProperties.Tracing tracing.enabled} switches.
+ *
+ * <h2>Health</h2>
+ *
+ * <p>If Spring Boot Actuator is on the classpath an {@link OutboxHealthIndicator} is registered
+ * under the name {@code outbox}. It is opt-out via {@link OutboxProperties.Health health.enabled}
+ * and respects the standard {@code management.health.outbox.enabled} switch.
  */
 @AutoConfiguration(after = DataSourceAutoConfiguration.class)
 @ConditionalOnClass({Outbox.class, JdbcOutbox.class})
@@ -62,7 +88,10 @@ public class OutboxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(Outbox.class)
-    public Outbox outbox(DataSource dataSource, OutboxProperties properties) {
+    public Outbox outbox(
+            DataSource dataSource,
+            OutboxProperties properties,
+            ObjectProvider<JdbcOutboxBuilderCustomizer> customizers) {
         JdbcOutbox.Builder builder =
                 JdbcOutbox.builder()
                         .connectionSupplier(() -> DataSourceUtils.getConnection(dataSource))
@@ -71,6 +100,7 @@ public class OutboxAutoConfiguration {
         if (schema != null && !schema.isBlank()) {
             builder.schema(schema);
         }
+        customizers.orderedStream().forEach(c -> c.customize(builder));
         return builder.build();
     }
 
@@ -87,18 +117,49 @@ public class OutboxAutoConfiguration {
             matchIfMissing = true)
     static class MetricsConfiguration {
 
+        // Return the concrete BPP type (which implements Ordered) so Spring's pre-instantiation
+        // type check in PostProcessorRegistrationDelegate#registerBeanPostProcessors recognizes
+        // the BPP as Ordered and sorts it accordingly. Returning BeanPostProcessor here puts the
+        // BPP in the "non-ordered" bucket, where @Order on the factory method is also ignored,
+        // and the decoration order becomes implementation-defined (observed: tracing-then-metrics,
+        // i.e. the wrong way round).
         @Bean
-        static BeanPostProcessor outboxMetricsBeanPostProcessor(
+        static MetricsBeanPostProcessor outboxMetricsBeanPostProcessor(
                 ObjectProvider<MeterRegistry> registryProvider) {
-            return new BeanPostProcessor() {
-                @Override
-                public Object postProcessAfterInitialization(Object bean, String name) {
-                    if (bean instanceof Outbox outbox && !(bean instanceof MeteredOutbox)) {
-                        return new MeteredOutbox(outbox, registryProvider.getObject());
-                    }
-                    return bean;
+            return new MetricsBeanPostProcessor(registryProvider);
+        }
+
+        /**
+         * Decorates {@link Outbox} beans with {@link MeteredOutbox}. Implements {@link Ordered}
+         * with {@link Ordered#LOWEST_PRECEDENCE} {@code - 200} so it runs <em>before</em> the
+         * tracing BPP (lower order values are invoked first), producing the inner {@code
+         * MeteredOutbox} layer that tracing then wraps. See ADR-0017 and the class javadoc.
+         *
+         * <p>{@link Ordered} is implemented on the BPP class itself rather than via {@code @Order}
+         * on the {@code @Bean} factory method because Spring's BPP registration sorts by {@link
+         * Ordered}/{@link org.springframework.core.PriorityOrdered PriorityOrdered}; the
+         * factory-method annotation is not enough on its own.
+         */
+        static final class MetricsBeanPostProcessor implements BeanPostProcessor, Ordered {
+
+            private final ObjectProvider<MeterRegistry> registryProvider;
+
+            MetricsBeanPostProcessor(ObjectProvider<MeterRegistry> registryProvider) {
+                this.registryProvider = registryProvider;
+            }
+
+            @Override
+            public Object postProcessAfterInitialization(Object bean, String name) {
+                if (bean instanceof Outbox outbox && !(bean instanceof MeteredOutbox)) {
+                    return new MeteredOutbox(outbox, registryProvider.getObject());
                 }
-            };
+                return bean;
+            }
+
+            @Override
+            public int getOrder() {
+                return Ordered.LOWEST_PRECEDENCE - 200;
+            }
         }
     }
 
@@ -116,23 +177,91 @@ public class OutboxAutoConfiguration {
     static class TracingConfiguration {
 
         static final String TRACER_INSTRUMENTATION_SCOPE_NAME = "io.github.lobofoltran.outbox";
+        static final String UNKNOWN_INSTRUMENTATION_VERSION = "unknown";
 
         @Bean
-        static BeanPostProcessor outboxTracingBeanPostProcessor(
+        static TracingBeanPostProcessor outboxTracingBeanPostProcessor(
                 ObjectProvider<OpenTelemetry> openTelemetryProvider) {
-            return new BeanPostProcessor() {
-                @Override
-                public Object postProcessAfterInitialization(Object bean, String name) {
-                    if (bean instanceof Outbox outbox && !(bean instanceof TracedOutbox)) {
-                        Tracer tracer =
+            return new TracingBeanPostProcessor(openTelemetryProvider);
+        }
+
+        /**
+         * BeanPostProcessor with a cached {@link Tracer} resolved on first use. Caching matters
+         * because the BPP can be invoked many times during context startup (every bean), and
+         * resolving the {@code Tracer} from the {@link OpenTelemetry} provider on every call is
+         * pointless.
+         *
+         * <p>Implements {@link Ordered} with {@link Ordered#LOWEST_PRECEDENCE} {@code - 100} so it
+         * runs <em>after</em> the metrics BPP (higher order value is invoked later), wrapping the
+         * already-metered delegate. See ADR-0017.
+         */
+        static final class TracingBeanPostProcessor implements BeanPostProcessor, Ordered {
+
+            private final ObjectProvider<OpenTelemetry> openTelemetryProvider;
+            private volatile Tracer tracer;
+
+            TracingBeanPostProcessor(ObjectProvider<OpenTelemetry> openTelemetryProvider) {
+                this.openTelemetryProvider = openTelemetryProvider;
+            }
+
+            @Override
+            public Object postProcessAfterInitialization(Object bean, String name) {
+                if (bean instanceof Outbox outbox && !(bean instanceof TracedOutbox)) {
+                    return new TracedOutbox(outbox, resolveTracer());
+                }
+                return bean;
+            }
+
+            @Override
+            public int getOrder() {
+                return Ordered.LOWEST_PRECEDENCE - 100;
+            }
+
+            private Tracer resolveTracer() {
+                Tracer cached = this.tracer;
+                if (cached != null) {
+                    return cached;
+                }
+                synchronized (this) {
+                    if (this.tracer == null) {
+                        this.tracer =
                                 openTelemetryProvider
                                         .getObject()
-                                        .getTracer(TRACER_INSTRUMENTATION_SCOPE_NAME);
-                        return new TracedOutbox(outbox, tracer);
+                                        .tracerBuilder(TRACER_INSTRUMENTATION_SCOPE_NAME)
+                                        .setInstrumentationVersion(resolveInstrumentationVersion())
+                                        .build();
                     }
-                    return bean;
+                    return this.tracer;
                 }
-            };
+            }
+        }
+
+        static String resolveInstrumentationVersion() {
+            String version = OutboxAutoConfiguration.class.getPackage().getImplementationVersion();
+            return version != null ? version : UNKNOWN_INSTRUMENTATION_VERSION;
+        }
+    }
+
+    /**
+     * Registers an {@link OutboxHealthIndicator} when Spring Boot Actuator is on the classpath and
+     * the standard {@code management.health.outbox.enabled} switch (plus our own opt-out) allows
+     * it.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(AbstractHealthIndicator.class)
+    @ConditionalOnEnabledHealthIndicator("outbox")
+    @ConditionalOnProperty(
+            prefix = "io.github.lobofoltran.outbox.health",
+            name = "enabled",
+            matchIfMissing = true)
+    static class HealthConfiguration {
+
+        @Bean(name = "outboxHealthIndicator")
+        @ConditionalOnMissingBean(name = "outboxHealthIndicator")
+        OutboxHealthIndicator outboxHealthIndicator(
+                DataSource dataSource, OutboxProperties properties) {
+            return new OutboxHealthIndicator(
+                    dataSource, properties.schema(), properties.tableName());
         }
     }
 }
