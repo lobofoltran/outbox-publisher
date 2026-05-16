@@ -42,6 +42,7 @@ outbox-publisher/
 - **Maven `groupId`:** `io.github.lobofoltran`
 - **Root package:** `io.github.lobofoltran.outbox`
 - **License:** MIT
+- **Contributor credentials:** the GitHub PAT used to pull artifacts from GitHub Packages MUST NOT be written to `~/.m2/settings.xml` in plaintext. Use `${env.GITHUB_USERNAME}` / `${env.GITHUB_TOKEN}` sourced from a vault-backed shell init, or Maven's master-password encryption (`mvn --encrypt-master-password` + `~/.m2/settings-security.xml`). CI relies on the runner-injected `GITHUB_TOKEN` and never persists it to disk.
 
 ## Table contract (reference)
 
