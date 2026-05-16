@@ -14,11 +14,16 @@ permissions:
 
 jobs:
   publish:
-    # Skip when the upstream release workflow failed or was cancelled, and
-    # only react to tag pushes matching v*.*.* (the same trigger release.yml uses).
+    # Run only when the upstream release workflow succeeded on a tag push.
+    # `release.yml` itself is restricted to `tags: v*.*.*`, so a successful
+    # workflow_run for it already implies a matching tag. We deliberately do
+    # NOT inspect `workflow_run.head_branch` here: for tag-triggered runs the
+    # GitHub API populates it with the branch the tagged commit lives on
+    # (typically `main`) or with `null`, never with the tag name — which is
+    # why a previous `startsWith(head_branch, 'v')` guard always skipped.
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      startsWith(github.event.workflow_run.head_branch, 'v')
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -26,6 +31,15 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+          # Need full history + tags so we can resolve the tag name from the SHA.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve tag name from head_sha
+        id: tag
+        run: |
+          tag="$(git describe --tags --exact-match "${{ github.event.workflow_run.head_sha }}")"
+          echo "name=${tag}" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 25
         uses: actions/setup-java@v5
@@ -46,4 +60,4 @@ jobs:
           keep_files: false
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: "docs: publish Javadoc for ${{ github.event.workflow_run.head_branch }}"
+          commit_message: "docs: publish Javadoc for ${{ steps.tag.outputs.name }}"
