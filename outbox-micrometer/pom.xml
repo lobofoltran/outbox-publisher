@@ -13,6 +13,12 @@
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Micrometer decorator that adds Timer and Counter metrics on every publish.</description>
 
+    <properties>
+        <!-- Thin decorator; ADR-0001 D10 raises this module to 95/95 line+branch. -->
+        <coverage.line.minimum>0.95</coverage.line.minimum>
+        <coverage.branch.minimum>0.95</coverage.branch.minimum>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>

@@ -4,8 +4,13 @@ import javax.sql.DataSource;
 
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.jdbc.JdbcOutbox;
+import io.github.lobofoltran.outbox.micrometer.MeteredOutbox;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -13,6 +18,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandi
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 
 /**
@@ -30,6 +36,11 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
  * <p>The {@code connectionSupplier} delegates to {@link DataSourceUtils#getConnection
  * DataSourceUtils.getConnection(dataSource)} so the INSERT participates in whichever transaction
  * Spring has bound to the current thread.
+ *
+ * <p>When both Micrometer and {@link MeteredOutbox} are on the classpath and a {@link
+ * MeterRegistry} bean exists, every {@link Outbox} bean in the context is wrapped with {@link
+ * MeteredOutbox} via a {@link BeanPostProcessor}. The wrapping is opt-out through {@code
+ * io.github.lobofoltran.outbox.metrics.enabled=false}.
  */
 @AutoConfiguration(after = DataSourceAutoConfiguration.class)
 @ConditionalOnClass({Outbox.class, JdbcOutbox.class})
@@ -53,5 +64,33 @@ public class OutboxAutoConfiguration {
             builder.schema(schema);
         }
         return builder.build();
+    }
+
+    /**
+     * Wraps every {@link Outbox} bean in the context with a {@link MeteredOutbox} when Micrometer
+     * is on the classpath and a {@link MeterRegistry} is available.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass({MeterRegistry.class, MeteredOutbox.class})
+    @ConditionalOnBean(MeterRegistry.class)
+    @ConditionalOnProperty(
+            prefix = "io.github.lobofoltran.outbox.metrics",
+            name = "enabled",
+            matchIfMissing = true)
+    static class MetricsConfiguration {
+
+        @Bean
+        static BeanPostProcessor outboxMetricsBeanPostProcessor(
+                ObjectProvider<MeterRegistry> registryProvider) {
+            return new BeanPostProcessor() {
+                @Override
+                public Object postProcessAfterInitialization(Object bean, String name) {
+                    if (bean instanceof Outbox outbox && !(bean instanceof MeteredOutbox)) {
+                        return new MeteredOutbox(outbox, registryProvider.getObject());
+                    }
+                    return bean;
+                }
+            };
+        }
     }
 }
