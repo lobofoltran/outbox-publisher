@@ -13,7 +13,6 @@
       "release-type": "simple",
       "package-name": "outbox-publisher",
       "changelog-path": "CHANGELOG.md",
-      "release-as": "0.1.0",
       "extra-files": [
         {
           "type": "xml",
