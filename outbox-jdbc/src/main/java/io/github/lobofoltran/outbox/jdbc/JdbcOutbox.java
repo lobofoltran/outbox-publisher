@@ -18,6 +18,7 @@ import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxConfigurationException;
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.OutboxException;
+import io.github.lobofoltran.outbox.OutboxValidationException;
 import io.github.lobofoltran.outbox.jdbc.internal.DialectAutoDetector;
 import io.github.lobofoltran.outbox.jdbc.internal.UuidV7Generator;
 import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialect;
@@ -81,13 +82,17 @@ public final class JdbcOutbox implements Outbox {
 
     @Override
     public void publish(OutboxEvent event) {
-        Objects.requireNonNull(event, "event must not be null");
+        if (event == null) {
+            throw new OutboxValidationException("event must not be null");
+        }
         publishAll(List.of(event));
     }
 
     @Override
     public void publishAll(Iterable<OutboxEvent> events) {
-        Objects.requireNonNull(events, "events must not be null");
+        if (events == null) {
+            throw new OutboxValidationException("events must not be null");
+        }
         List<OutboxEvent> batch = materialize(events);
         if (batch.isEmpty()) {
             return;
@@ -116,7 +121,7 @@ public final class JdbcOutbox implements Outbox {
     private static List<OutboxEvent> materialize(Iterable<OutboxEvent> events) {
         if (events instanceof List<OutboxEvent> list) {
             for (OutboxEvent e : list) {
-                Objects.requireNonNull(e, "events must not contain null elements");
+                requireNonNullElement(e);
             }
             return list;
         }
@@ -124,10 +129,16 @@ public final class JdbcOutbox implements Outbox {
         Iterator<OutboxEvent> it = events.iterator();
         while (it.hasNext()) {
             OutboxEvent next = it.next();
-            Objects.requireNonNull(next, "events must not contain null elements");
+            requireNonNullElement(next);
             copy.add(next);
         }
         return copy;
+    }
+
+    private static void requireNonNullElement(OutboxEvent event) {
+        if (event == null) {
+            throw new OutboxValidationException("events must not contain null elements");
+        }
     }
 
     private static void requireManualTransaction(Connection connection) throws SQLException {

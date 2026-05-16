@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.OutboxException;
+import io.github.lobofoltran.outbox.OutboxValidationException;
 
 import org.junit.jupiter.api.Test;
 
@@ -241,7 +242,8 @@ class JdbcOutboxIT extends AbstractPostgresIT {
     @Test
     void rejects_null_event() {
         JdbcOutbox outbox = JdbcOutbox.builder().connectionSupplier(() -> null).build();
-        assertThatThrownBy(() -> outbox.publish(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> outbox.publish(null))
+                .isInstanceOf(OutboxValidationException.class);
     }
 
     private static ResultSet bind(PreparedStatement statement, UUID id) throws SQLException {

@@ -6,7 +6,7 @@
 package io.github.lobofoltran.outbox.jdbc;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 import io.github.lobofoltran.outbox.OutboxEvent;
+import io.github.lobofoltran.outbox.OutboxValidationException;
 
 import org.junit.jupiter.api.Test;
 
@@ -108,9 +109,9 @@ class JdbcOutboxBatchIT extends AbstractPostgresIT {
     @Test
     void publish_all_rejects_null_iterable() {
         JdbcOutbox outbox = JdbcOutbox.builder().connectionSupplier(() -> null).build();
-        assertThatNullPointerException()
-                .isThrownBy(() -> outbox.publishAll(null))
-                .withMessageContaining("events");
+        assertThatThrownBy(() -> outbox.publishAll(null))
+                .isInstanceOf(OutboxValidationException.class)
+                .hasMessageContaining("events");
     }
 
     @Test
@@ -119,7 +120,8 @@ class JdbcOutboxBatchIT extends AbstractPostgresIT {
         java.util.List<OutboxEvent> events = new java.util.ArrayList<>();
         events.add(eventWith(UUID.randomUUID()));
         events.add(null);
-        assertThatNullPointerException().isThrownBy(() -> outbox.publishAll(events));
+        assertThatThrownBy(() -> outbox.publishAll(events))
+                .isInstanceOf(OutboxValidationException.class);
     }
 
     @Test
@@ -129,7 +131,8 @@ class JdbcOutboxBatchIT extends AbstractPostgresIT {
                 () ->
                         java.util.Arrays.asList(eventWith(UUID.randomUUID()), (OutboxEvent) null)
                                 .iterator();
-        assertThatNullPointerException().isThrownBy(() -> outbox.publishAll(iterable));
+        assertThatThrownBy(() -> outbox.publishAll(iterable))
+                .isInstanceOf(OutboxValidationException.class);
     }
 
     private static OutboxEvent eventWith(UUID id) {

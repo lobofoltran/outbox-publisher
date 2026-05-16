@@ -6,7 +6,6 @@
 package io.github.lobofoltran.outbox.tck;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -30,6 +29,7 @@ import io.github.lobofoltran.outbox.OutboxDataException;
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.OutboxIntegrityException;
 import io.github.lobofoltran.outbox.OutboxTransientException;
+import io.github.lobofoltran.outbox.OutboxValidationException;
 import io.github.lobofoltran.outbox.jdbc.JdbcOutbox;
 import io.github.lobofoltran.outbox.jdbc.spi.DialectCapability;
 import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialect;
@@ -180,7 +180,8 @@ public abstract class OutboxDialectContractTest {
         try (Connection connection = dataSource().getConnection()) {
             connection.setAutoCommit(false);
             JdbcOutbox outbox = newOutbox(connection);
-            assertThatNullPointerException().isThrownBy(() -> outbox.publish(null));
+            assertThatThrownBy(() -> outbox.publish(null))
+                    .isInstanceOf(OutboxValidationException.class);
             connection.rollback();
         }
     }

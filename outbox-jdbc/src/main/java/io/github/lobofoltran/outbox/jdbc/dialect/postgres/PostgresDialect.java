@@ -126,7 +126,7 @@ public final class PostgresDialect implements OutboxDialect {
     private static void requireMaxBytes(String value, String name, int max) {
         int bytes = value.getBytes(StandardCharsets.UTF_8).length;
         if (bytes > max) {
-            throw new IllegalArgumentException(
+            throw new OutboxDataException(
                     name + " must be at most " + max + " bytes (UTF-8), got " + bytes + " bytes");
         }
     }

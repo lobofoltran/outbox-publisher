@@ -6,7 +6,7 @@
 package io.github.lobofoltran.outbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -38,15 +38,15 @@ class OutboxEventBuilderTest {
                 Arguments.of("headers", (Consumer<OutboxEvent.Builder>) b -> b.headers(null)));
     }
 
-    @ParameterizedTest(name = "{0}(null) throws NPE eagerly with field name in message")
+    @ParameterizedTest(name = "{0}(null) throws OutboxValidationException eagerly")
     @MethodSource("nonNullableSetters")
     @DisplayName("non-nullable setters reject null at the call site, not at build()")
     void non_nullable_setters_reject_null_eagerly(
             String fieldName, Consumer<OutboxEvent.Builder> setterCall) {
         OutboxEvent.Builder builder = OutboxEvent.builder();
-        assertThatNullPointerException()
-                .isThrownBy(() -> setterCall.accept(builder))
-                .withMessageContaining(fieldName);
+        assertThatThrownBy(() -> setterCall.accept(builder))
+                .isInstanceOf(OutboxValidationException.class)
+                .hasMessageContaining(fieldName);
     }
 
     @Test

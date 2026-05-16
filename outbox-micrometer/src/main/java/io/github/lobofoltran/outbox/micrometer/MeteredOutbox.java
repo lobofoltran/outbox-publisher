@@ -12,6 +12,7 @@ import java.util.function.BiPredicate;
 
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
+import io.github.lobofoltran.outbox.OutboxValidationException;
 
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -128,7 +129,9 @@ public final class MeteredOutbox implements Outbox {
 
     @Override
     public void publish(OutboxEvent event) {
-        Objects.requireNonNull(event, "event must not be null");
+        if (event == null) {
+            throw new OutboxValidationException("event must not be null");
+        }
         // payloadSize() returns the byte length without cloning the underlying array,
         // so we pay no allocation on the hot publish path.
         int payloadBytes = event.payloadSize();
@@ -145,12 +148,16 @@ public final class MeteredOutbox implements Outbox {
 
     @Override
     public void publishAll(Iterable<OutboxEvent> events) {
-        Objects.requireNonNull(events, "events must not be null");
+        if (events == null) {
+            throw new OutboxValidationException("events must not be null");
+        }
         // Materialize once so we can record metrics regardless of the underlying implementation
         // and so that single-pass iterables work as expected.
         List<OutboxEvent> batch = new ArrayList<>();
         for (OutboxEvent event : events) {
-            Objects.requireNonNull(event, "events must not contain null elements");
+            if (event == null) {
+                throw new OutboxValidationException("events must not contain null elements");
+            }
             batch.add(event);
         }
 

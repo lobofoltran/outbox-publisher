@@ -68,7 +68,8 @@ public interface OutboxDialect {
 
     /**
      * Validates that {@code event} fits this dialect's underlying column constraints (width, byte
-     * length, character set, etc.) and throws {@link IllegalArgumentException} otherwise. Called by
+     * length, character set, etc.) and throws {@link
+     * io.github.lobofoltran.outbox.OutboxDataException OutboxDataException} otherwise. Called by
      * {@code JdbcOutbox} immediately before binding each row so callers get a fail-fast error
      * before the SQL is ever sent.
      *
@@ -78,8 +79,15 @@ public interface OutboxDialect {
      * customized schema with wider columns can either skip the {@code outbox-jdbc} default dialect
      * or supply their own {@link OutboxDialect} that relaxes the check.
      *
+     * <p>Since 0.4.0 width/range failures surface as {@link
+     * io.github.lobofoltran.outbox.OutboxDataException} (a leaf of the sealed {@link
+     * io.github.lobofoltran.outbox.OutboxException} hierarchy) instead of {@link
+     * IllegalArgumentException}, so callers can rely on a single {@code catch (OutboxException e)}
+     * block.
+     *
      * @param event the event about to be persisted; never {@code null}.
-     * @throws IllegalArgumentException if a field violates this dialect's constraints.
+     * @throws io.github.lobofoltran.outbox.OutboxDataException if a field violates this dialect's
+     *     constraints.
      * @since 0.3.0
      */
     default void validate(OutboxEvent event) {

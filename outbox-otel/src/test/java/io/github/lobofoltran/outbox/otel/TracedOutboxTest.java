@@ -19,6 +19,7 @@ import java.util.UUID;
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.OutboxException;
+import io.github.lobofoltran.outbox.OutboxValidationException;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -294,16 +295,16 @@ class TracedOutboxTest {
 
     @Test
     void publish_rejects_null_event() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> traced.publish(null))
-                .withMessageContaining("event");
+        assertThatThrownBy(() -> traced.publish(null))
+                .isInstanceOf(OutboxValidationException.class)
+                .hasMessageContaining("event");
     }
 
     @Test
     void publish_all_rejects_null_iterable() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> traced.publishAll(null))
-                .withMessageContaining("events");
+        assertThatThrownBy(() -> traced.publishAll(null))
+                .isInstanceOf(OutboxValidationException.class)
+                .hasMessageContaining("events");
     }
 
     @Test
@@ -311,7 +312,8 @@ class TracedOutboxTest {
         List<OutboxEvent> events = new ArrayList<>();
         events.add(event("Order", "OrderPlaced", null));
         events.add(null);
-        assertThatNullPointerException().isThrownBy(() -> traced.publishAll(events));
+        assertThatThrownBy(() -> traced.publishAll(events))
+                .isInstanceOf(OutboxValidationException.class);
     }
 
     @Test
