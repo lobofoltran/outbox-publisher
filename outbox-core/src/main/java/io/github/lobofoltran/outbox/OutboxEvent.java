@@ -86,10 +86,23 @@ public record OutboxEvent(
         headers = Collections.unmodifiableMap(new LinkedHashMap<>(headers));
     }
 
-    /** Returns a defensive copy of {@code payload}. */
+    /**
+     * Returns a defensive copy of {@code payload}.
+     *
+     * <p>Callers that only need the size in bytes should prefer {@link #payloadSize()}, which
+     * avoids cloning the underlying array.
+     */
     @Override
     public byte[] payload() {
         return payload.clone();
+    }
+
+    /**
+     * Returns the size in bytes of the payload, without cloning the underlying array. Intended for
+     * callers (metrics, logging) that need the size and never the bytes.
+     */
+    public int payloadSize() {
+        return payload.length;
     }
 
     /** Returns the headers map. Already immutable; safe to return as-is. */

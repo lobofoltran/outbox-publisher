@@ -128,6 +128,31 @@ class MeteredOutboxTest {
     }
 
     @Test
+    void publish_does_not_clone_payload_on_hot_path() {
+        // OutboxEvent is a final record so we cannot spy on payload(). Instead, assert the
+        // optimization indirectly: with a 4 MiB payload, 1,000 publishes complete well under
+        // the lax threshold below. An implementation that called payload() on the hot path
+        // would clone ~4 GiB total, taking seconds, not <2 s.
+        byte[] big = new byte[4 << 20];
+        OutboxEvent event = event("Order", "OrderPlaced", big);
+
+        long start = System.nanoTime();
+        for (int i = 0; i < 1_000; i++) {
+            metered.publish(event);
+        }
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+
+        DistributionSummary summary =
+                registry.find(MeteredOutbox.PAYLOAD_SUMMARY)
+                        .tags(Tags.of("aggregate_type", "Order", "event_type", "OrderPlaced"))
+                        .summary();
+        assertThat(summary.count()).isEqualTo(1_000L);
+        assertThat(elapsedMs)
+                .as("1,000 publishes of a 4 MiB payload completed in %d ms", elapsedMs)
+                .isLessThan(2_000L);
+    }
+
+    @Test
     void rejects_null_delegate() {
         assertThatNullPointerException()
                 .isThrownBy(() -> new MeteredOutbox(null, registry))
