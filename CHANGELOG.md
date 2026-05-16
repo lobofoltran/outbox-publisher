@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/). Releases are managed automatically by [release-please](https://github.com/googleapis/release-please).
 
+## [0.4.3](https://github.com/lobofoltran/outbox-publisher/compare/v0.4.2...v0.4.3) (2026-05-16)
+
+
+### Bug Fixes
+
+* **javadoc:** publish from target/reports/apidocs ([#79](https://github.com/lobofoltran/outbox-publisher/issues/79)) ([af554f0](https://github.com/lobofoltran/outbox-publisher/commit/af554f00f67e570ce7c09cf5b98c2a87870562cf))
+
 ## [0.4.2](https://github.com/lobofoltran/outbox-publisher/compare/v0.4.1...v0.4.2) (2026-05-16)
 
 
