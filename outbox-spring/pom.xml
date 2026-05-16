@@ -30,6 +30,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>
+        <!-- Annotation processor only — generates META-INF/spring-configuration-metadata.json
+             from @ConfigurationProperties. Not on the runtime classpath. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Optional health-indicator integration: powers OutboxHealthIndicator. Spring Boot 4
+             split the health domain (AbstractHealthIndicator, ConditionalOnEnabledHealthIndicator)
+             out of spring-boot-actuator into spring-boot-health. The autoconfig only wires the
+             indicator when AbstractHealthIndicator is on the classpath. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-health</artifactId>
+            <optional>true</optional>
+        </dependency>
         <!-- Spring Boot 4 split auto-configurations into per-domain jars.
              spring-boot-jdbc hosts DataSourceAutoConfiguration and brings spring-jdbc
              (with DataSourceUtils) transitively. -->
@@ -37,9 +53,18 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-jdbc</artifactId>
         </dependency>
+        <!-- Micrometer is consumed only by MeteredOutbox (an optional decorator) and
+             by the metrics BeanPostProcessor's @ConditionalOnClass / @ConditionalOnBean
+             checks. We do not redistribute it: consumers running on Spring Boot already
+             have Micrometer pulled in by spring-boot-actuator at the version managed by
+             their Spring Boot BOM. The explicit version below is a minimum baseline for
+             pure-compile usage (e.g. IDEs, non-Boot consumers); the Spring Boot BOM
+             dependency management on the consumer side will normally override it. -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
+            <version>${micrometer.version}</version>
+            <scope>provided</scope>
             <optional>true</optional>
         </dependency>
         <dependency>
@@ -118,4 +143,19 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Java 23+ defaults to -proc:none. Re-enable annotation processing explicitly so
+                 spring-boot-configuration-processor produces META-INF/spring-configuration-metadata.json
+                 from @ConfigurationProperties. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <proc>full</proc>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
