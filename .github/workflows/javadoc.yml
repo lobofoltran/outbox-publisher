@@ -70,7 +70,12 @@ jobs:
           cache: maven
 
       - name: Aggregate Javadoc
-        run: ./mvnw -B -ntp -Prelease -DskipTests javadoc:aggregate
+        # `javadoc:aggregate` inspects the *packaged* JAR of each reactor module
+        # to find module descriptors / Automatic-Module-Name entries. Without
+        # `package` first, the JAR doesn't exist yet and the plugin treats
+        # outbox-spring (an automatic module) as an unnamed JAR, which fails
+        # the "named + unnamed" check.
+        run: ./mvnw -B -ntp -Prelease -DskipTests package javadoc:aggregate
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4

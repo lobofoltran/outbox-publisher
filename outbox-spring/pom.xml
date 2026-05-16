@@ -148,6 +148,31 @@
                     <proc>full</proc>
                 </configuration>
             </plugin>
+            <!--
+                outbox-spring intentionally stays as an automatic module (see AGENTS.md):
+                Spring Boot's autoconfig mechanism plays poorly with strict JPMS, and we
+                don't want to expose a module-info.java contract for a glue layer. But the
+                JAR still needs a stable module name for two reasons:
+
+                  1. Consumers running on the module path get a deterministic name instead
+                     of one derived from the filename (which changes with the version).
+                  2. `mvn javadoc:aggregate` refuses to mix named modules (outbox-core,
+                     outbox-jdbc, outbox-micrometer, outbox-otel, outbox-tck — all with
+                     module-info.java) with truly unnamed JARs. Adding Automatic-Module-Name
+                     makes outbox-spring an *automatic* module from javadoc's perspective,
+                     which is enough for the aggregator to accept the mixed reactor.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>io.github.lobofoltran.outbox.spring</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
