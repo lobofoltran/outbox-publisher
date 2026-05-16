@@ -7,12 +7,17 @@
   Checkstyle configuration for outbox-publisher.
 
   Enforces the org-wide Java coding standard (sections 3.6 through 3.11 of
-  AGENTS.md). Pure formatting concerns belong to Spotless / palantir-java-format
+  AGENTS.md). Pure formatting concerns belong to Spotless / google-java-format
   and are intentionally not duplicated here.
 -->
 <module name="Checker">
     <property name="severity" value="error"/>
     <property name="fileExtensions" value="java"/>
+
+    <!-- Checkstyle's grammar does not understand module-info.java; exclude it. -->
+    <module name="BeforeExecutionExclusionFileFilter">
+        <property name="fileNamePattern" value=".*[\\/]module-info\.java$"/>
+    </module>
 
     <module name="SuppressWarningsFilter"/>
 
