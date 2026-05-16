@@ -1,0 +1,13 @@
+module:io.github.lobofoltran.outbox.core
+io.github.lobofoltran.outbox
+module:io.github.lobofoltran.outbox.jdbc
+io.github.lobofoltran.outbox.jdbc
+io.github.lobofoltran.outbox.jdbc.spi
+module:io.github.lobofoltran.outbox.micrometer
+io.github.lobofoltran.outbox.micrometer
+module:io.github.lobofoltran.outbox.otel
+io.github.lobofoltran.outbox.otel
+module:io.github.lobofoltran.outbox.spring
+io.github.lobofoltran.outbox.spring
+module:io.github.lobofoltran.outbox.tck
+io.github.lobofoltran.outbox.tck

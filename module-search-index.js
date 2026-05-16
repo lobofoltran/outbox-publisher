@@ -1,0 +1,1 @@
+moduleSearchIndex = [{"l":"io.github.lobofoltran.outbox.core"},{"l":"io.github.lobofoltran.outbox.jdbc"},{"l":"io.github.lobofoltran.outbox.micrometer"},{"l":"io.github.lobofoltran.outbox.otel"},{"l":"io.github.lobofoltran.outbox.spring"},{"l":"io.github.lobofoltran.outbox.tck"}];updateSearchResults();
