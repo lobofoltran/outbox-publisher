@@ -62,9 +62,41 @@ public record OutboxProperties(
      *     whenever the OpenTelemetry API is on the classpath; the {@code OpenTelemetry} instance is
      *     resolved from a Spring bean if present, falling back to {@code GlobalOpenTelemetry.get()}
      *     (no-op when no SDK has been installed).
+     * @param sdk OpenTelemetry SDK auto-configuration settings. See {@link Sdk}.
      * @since 0.1.0
      */
-    public record Tracing(@DefaultValue("true") boolean enabled) {}
+    public record Tracing(@DefaultValue("true") boolean enabled, @DefaultValue Sdk sdk) {
+
+        /**
+         * Spring-aware {@code opentelemetry-sdk-extension-autoconfigure} bridge. Bound under {@code
+         * io.github.lobofoltran.outbox.tracing.sdk}.
+         *
+         * <p>The upstream {@code AutoConfiguredOpenTelemetrySdk} only consults system properties,
+         * environment variables, and a properties file. It does not read Spring's {@code
+         * Environment}, which means {@code otel.*} keys placed in {@code application.yml} are
+         * silently ignored and every span ends up under {@code unknown_service:java}. When the
+         * autoconfigure extension is on the classpath, this library bridges the gap by collecting
+         * every {@code otel.*} key visible to Spring's {@code Environment} and passing them as a
+         * {@code PropertiesSupplier} to the SDK builder. The resulting {@code OpenTelemetry}
+         * instance is exposed as a Spring bean and is picked up by the tracing decorator.
+         *
+         * @param enabled opt-in switch. Defaults to {@code false} because {@code
+         *     AutoConfiguredOpenTelemetrySdk} defaults every signal exporter to OTLP and would fail
+         *     context startup if {@code opentelemetry-exporter-otlp} is absent. Adopters who want
+         *     the Spring-aware bridge set this to {@code true} and supply {@code otel.*} keys in
+         *     {@code application.yml}. Adopters wiring OpenTelemetry through the Java Agent or the
+         *     {@code opentelemetry-spring-boot-starter} should leave this {@code false} to avoid
+         *     building a second SDK.
+         * @param setAsGlobal when {@code true}, the built SDK is installed as the JVM-wide {@code
+         *     GlobalOpenTelemetry} instance. Defaults to {@code false} because the outbox tracing
+         *     decorator consumes the bean directly and global mutation can collide with the OTel
+         *     Java Agent.
+         * @since 0.5.0
+         */
+        public record Sdk(
+                @DefaultValue("false") boolean enabled,
+                @DefaultValue("false") boolean setAsGlobal) {}
+    }
 
     /**
      * Health indicator settings. Bound under {@code io.github.lobofoltran.outbox.health}.

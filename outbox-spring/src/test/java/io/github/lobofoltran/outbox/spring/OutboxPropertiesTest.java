@@ -30,6 +30,8 @@ class OutboxPropertiesTest {
                     assertThat(props.metrics().tagFallback()).isEqualTo("other");
                     assertThat(props.metrics().eventTypeAllowlist()).isEmpty();
                     assertThat(props.tracing().enabled()).isTrue();
+                    assertThat(props.tracing().sdk().enabled()).isFalse();
+                    assertThat(props.tracing().sdk().setAsGlobal()).isFalse();
                     assertThat(props.health().enabled()).isTrue();
                 });
     }

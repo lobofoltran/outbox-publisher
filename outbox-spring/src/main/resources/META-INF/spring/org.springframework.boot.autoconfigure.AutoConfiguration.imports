@@ -1,1 +1,2 @@
 io.github.lobofoltran.outbox.spring.OutboxAutoConfiguration
+io.github.lobofoltran.outbox.spring.OutboxOpenTelemetrySdkAutoConfiguration
