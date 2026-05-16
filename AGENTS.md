@@ -43,11 +43,6 @@ outbox-publisher/
 - **Root package:** `io.github.lobofoltran.outbox`
 - **License:** MIT
 
-## Open decisions
-
-- INSERT retry policy: explicit in the API or delegated to Spring `@Retryable` / Resilience4j on the caller side.
-- `headers` serialization strategy: Jackson dependency vs. hand-rolled JSON (zero-dep, `Map<String,String>` only).
-
 ## Table contract (reference)
 
 Single migration script: `outbox-schema/src/main/resources/sql/postgres/outbox.sql`. Indexes are sized for two query patterns owned by the relay: **polling for pending events** and **purging already-sent events**.
@@ -387,6 +382,6 @@ When working with an AI agent, after every code-producing turn the AI must amend
 
 ### Repo-specific notes
 
-- ADRs are stored under `docs/adr/`. ADR-0001 backfills the decisions captured in [Locked decisions](#locked-decisions) and is delivered in **Phase F0** of [`ROADMAP.md`](./ROADMAP.md).
-- The PR template lives at `.github/pull_request_template.md`, delivered in Phase F0.
+- ADRs are stored under `docs/adr/`. ADR-0001 backfills the decisions captured in [Locked decisions](#locked-decisions).
+- The PR template lives at `.github/pull_request_template.md`.
 - A pre-commit / pre-push hook validating commit message format and GPG signature is **recommended** but not yet wired. Track as a `chore(repo)` issue when needed.
