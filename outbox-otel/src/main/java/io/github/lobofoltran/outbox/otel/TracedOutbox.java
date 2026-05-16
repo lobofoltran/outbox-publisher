@@ -7,6 +7,7 @@ import java.util.Objects;
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
 
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
@@ -64,12 +65,64 @@ public final class TracedOutbox implements Outbox {
     private static final String OPERATION_PUBLISH = "publish";
     private static final String OPERATION_PUBLISH_BATCH = "publish_batch";
 
+    /**
+     * Instrumentation scope name reported on every span emitted by this decorator. Stable across
+     * versions so backends can group all {@code outbox-otel} spans under a single library entry.
+     */
+    static final String INSTRUMENTATION_NAME = "io.github.lobofoltran.outbox";
+
+    static final String UNKNOWN_VERSION = "unknown";
+
     private final Outbox delegate;
     private final Tracer tracer;
 
+    /**
+     * Wraps {@code delegate} so every publish call emits a span on the supplied {@link Tracer}.
+     *
+     * <p>This is the lowest-level constructor; the caller is responsible for obtaining the {@code
+     * Tracer} from its own {@code TracerProvider}, including setting an instrumentation scope name
+     * and version that fit its observability conventions. Prefer {@link #TracedOutbox(Outbox,
+     * OpenTelemetry)} when those defaults are acceptable.
+     */
     public TracedOutbox(Outbox delegate, Tracer tracer) {
         this.delegate = Objects.requireNonNull(delegate, "delegate must not be null");
         this.tracer = Objects.requireNonNull(tracer, "tracer must not be null");
+    }
+
+    /**
+     * Convenience constructor that builds a {@link Tracer} from {@code otel} pinned to the {@code
+     * outbox-otel} instrumentation scope ({@value #INSTRUMENTATION_NAME}) and to this library's
+     * published version (read from {@link Package#getImplementationVersion()}, falling back to
+     * {@value #UNKNOWN_VERSION} when the JAR is exploded on the classpath without a manifest —
+     * typically only the case in IDE / reactor builds).
+     *
+     * <p>The Spring Boot auto-configuration uses this constructor so the instrumentation scope name
+     * and version follow the library, not the application. Manual wiring code should prefer this
+     * constructor too unless the caller needs a non-default tracer.
+     */
+    public TracedOutbox(Outbox delegate, OpenTelemetry otel) {
+        this(
+                delegate,
+                Objects.requireNonNull(otel, "otel must not be null")
+                        .getTracerProvider()
+                        .tracerBuilder(INSTRUMENTATION_NAME)
+                        .setInstrumentationVersion(versionOrUnknown())
+                        .build());
+    }
+
+    /**
+     * Reads the implementation version from {@code TracedOutbox}'s own {@link Package}, falling
+     * back to {@value #UNKNOWN_VERSION} when the {@code Implementation-Version} manifest entry is
+     * absent (exploded JAR / IDE incremental build / in-reactor test build). The fallback is silent
+     * on purpose: a missing version is not worth failing instrumentation over.
+     *
+     * <p>{@link Class#getPackage()} returns non-null for every non-array, non-primitive type, so
+     * {@code TracedOutbox.class.getPackage()} is unconditionally safe — no null-check on the
+     * package itself is needed.
+     */
+    private static String versionOrUnknown() {
+        return Objects.requireNonNullElse(
+                TracedOutbox.class.getPackage().getImplementationVersion(), UNKNOWN_VERSION);
     }
 
     @Override

@@ -23,9 +23,17 @@ module io.github.lobofoltran.outbox.tck {
     requires transitive org.junit.jupiter.api;
     requires transitive org.assertj.core;
 
-    // Testcontainers is a Maven-scope convenience for subclassers (carried transitively by the
-    // BOM); intentionally NOT a JPMS `requires` because the TCK's own source does not reference
-    // any Testcontainers type in its public API. Subclassers' own modules declare it themselves.
+    // Testcontainers is intentionally NOT a JPMS `requires` here. The TCK contract base
+    // (`OutboxDialectContractTest`) accepts a `javax.sql.DataSource` — no Testcontainers type
+    // appears in any of its method signatures or fields. Subclassers (e.g.
+    // `PostgresDialectContractIT`)
+    // wire Testcontainers themselves and declare `requires testcontainers` (or stay on the
+    // classpath) at their level. Re-exporting it transitively from the TCK would pin a
+    // module-name choice on every consumer (the JAR has no `Automatic-Module-Name`, so the name
+    // is derived from the filename) and break in-reactor tests that use
+    // `org.testcontainers:postgresql`
+    // since requiring `testcontainers` switches the test compile to a strict module path.
+    // Maven scope still carries the JAR transitively for convenience — see `outbox-tck/pom.xml`.
 
     exports io.github.lobofoltran.outbox.tck;
 }
