@@ -1,0 +1,14 @@
+# Datasource and Flyway are configured by the test profile via Testcontainers
+# (see OrderServiceIT). This file just enables Flyway and shows the property
+# surface exposed by outbox-spring.
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+io:
+  github:
+    lobofoltran:
+      outbox:
+        enabled: true
+        table-name: outbox

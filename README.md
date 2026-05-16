@@ -12,6 +12,7 @@ The application **does not know** how those events will be delivered to the outs
 - [Installation](#installation)
 - [Quick start (Spring Boot)](#quick-start-spring-boot)
 - [Quick start (plain JDBC)](#quick-start-plain-jdbc)
+- [Try it out](#try-it-out)
 - [The `outbox` table contract](#the-outbox-table-contract)
 - [Module-by-module reference](#module-by-module-reference)
 - [Multi-module / hexagonal projects](#multi-module--hexagonal-projects)
@@ -259,6 +260,24 @@ try (Connection conn = ds.getConnection()) {
     conn.commit();
 }
 ```
+
+## Try it out
+
+Two end-to-end runnable examples live under [`examples/`](examples/):
+
+- [`examples/spring-boot-quickstart`](examples/spring-boot-quickstart/) — Spring Boot 4 with autoconfigured `Outbox`, Flyway-applied schema, and a Testcontainers integration test. The README also covers the Spring Boot 4 + Flyway gotcha and GitHub Packages auth setup.
+- [`examples/plain-jdbc`](examples/plain-jdbc/) — pure JDBC + HikariCP, manual transaction boundary, dialect auto-detection, with rollback semantics demonstrated by a Testcontainers test.
+
+```bash
+# Install the reactor first so the BOM resolves locally
+./mvnw -B -ntp -DskipTests install
+
+# Then build any example against the installed BOM
+mvn -B -ntp -f examples/spring-boot-quickstart/pom.xml verify
+mvn -B -ntp -f examples/plain-jdbc/pom.xml verify
+```
+
+The examples are intentionally **not** part of the Maven reactor — they are documentation and CI fixtures, not released artifacts.
 
 ## The `outbox` table contract
 

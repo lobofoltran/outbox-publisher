@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  outbox-publisher Spring Boot 4 quickstart example.
+
+  This is NOT part of the release reactor and intentionally does not declare
+  the outbox-publisher-parent. It mirrors what a real adopter sees: a plain
+  Spring Boot project that imports outbox-bom from the local m2 repository.
+
+  Build with:
+    # from repo root, install the reactor first
+    ./mvnw -B -ntp -DskipTests install
+    # then build this example against the just-installed BOM
+    mvn -B -ntp -f examples/spring-boot-quickstart/pom.xml verify
+
+  Override the BOM/library version when iterating against a non-default revision:
+    mvn -B -ntp -Doutbox.version=0.2.0-SNAPSHOT -f examples/spring-boot-quickstart/pom.xml verify
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.lobofoltran.examples</groupId>
+    <artifactId>outbox-spring-boot-quickstart</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>outbox-publisher :: example :: spring-boot-quickstart</name>
+    <description>End-to-end Spring Boot 4 example for outbox-publisher.</description>
+
+    <properties>
+        <maven.compiler.release>25</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Default to the version produced by the parent reactor's <revision>.
+             Override on the CLI (-Doutbox.version=...) when needed. -->
+        <outbox.version>0.1.0</outbox.version>
+
+        <spring-boot.version>4.0.6</spring-boot.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Pulls in Spring Boot 4 managed versions for HikariCP, Flyway,
+                 PostgreSQL JDBC driver, JUnit, AssertJ, Testcontainers, etc. -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- The outbox-publisher BOM pins every io.github.lobofoltran:outbox-* artifact. -->
+            <dependency>
+                <groupId>io.github.lobofoltran</groupId>
+                <artifactId>outbox-bom</artifactId>
+                <version>${outbox.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Application code only depends on outbox-core: that is the design. -->
+        <dependency>
+            <groupId>io.github.lobofoltran</groupId>
+            <artifactId>outbox-core</artifactId>
+        </dependency>
+        <!-- The Spring Boot autoconfiguration; pulls outbox-jdbc transitively. -->
+        <dependency>
+            <groupId>io.github.lobofoltran</groupId>
+            <artifactId>outbox-spring</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+        <!--
+          IMPORTANT (Spring Boot 4): the Flyway autoconfiguration moved to its own
+          starter module. Pulling in only `flyway-core` is no longer enough — the
+          FlywayAutoConfiguration class lives in spring-boot-starter-flyway. Without
+          this starter, the migration scripts under db/migration are silently
+          ignored at startup.
+
+          See examples/spring-boot-quickstart/README.md > "Spring Boot 4 + Flyway"
+          for the full rationale (consumer feedback item #21).
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Provides @ServiceConnection so the Testcontainers Postgres binds
+             to the auto-configured DataSource without manual property tweaks. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+            </plugin>
+            <!-- Integration tests use the *IT suffix (per the AGENTS.md test layout
+                 conventions) so they run in the integration-test phase via failsafe. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.5.2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
