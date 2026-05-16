@@ -47,4 +47,5 @@ jobs:
             **/target/*-sources.jar.asc
             **/target/*-javadoc.jar
             **/target/*-javadoc.jar.asc
+            docs/security/ci-pubkey.asc
           fail_on_unmatched_files: false
