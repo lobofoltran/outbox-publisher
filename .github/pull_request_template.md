@@ -1,0 +1,44 @@
+<!--
+Thanks for the contribution. Please fill in every section.
+Drafts are welcome — mark the PR as Draft and iterate.
+The full rule set lives in AGENTS.md; this template only captures the per-PR signals.
+-->
+
+## Summary
+
+<!-- One paragraph: what changes and why. Link to the issue if there is one. -->
+
+## Roadmap stage
+
+<!-- Which phase from ROADMAP.md does this implement? e.g. F1, F5, F6.5. -->
+
+Phase: **F?** — [link to the relevant section](../blob/main/ROADMAP.md)
+
+## ADR / PRD
+
+<!-- Every code-producing PR links to an ADR. If this PR adds one, list it here. -->
+
+Implements: `docs/adr/XXXX-name.md`
+
+## Risk summary
+
+<!-- What can break? What is the blast radius? Cross-module impact? -->
+
+## Rollback plan
+
+<!-- How to revert if this misbehaves after merge. "Revert the commit" is acceptable
+     only when the change is truly self-contained; otherwise describe the steps. -->
+
+## Observability impact
+
+<!-- New or changed logs / metrics / traces? Cardinality concerns?
+     "None" is a valid answer for pure docs / refactor PRs. -->
+
+## Checklist
+
+- [ ] Conventional Commit subject (`type(scope): subject`)
+- [ ] All commits GPG-signed
+- [ ] Coverage gates honored (`./mvnw -B -ntp -Pquality verify`)
+- [ ] No `var` in production code, no JUnit 4 imports, no reflection in tests
+- [ ] Documentation updated (`README.md` / `AGENTS.md` / `ROADMAP.md` as applicable)
+- [ ] ADR linked or added
