@@ -6,7 +6,6 @@
 package io.github.lobofoltran.outbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
@@ -123,43 +122,42 @@ class OutboxEventTest {
 
         @Test
         void rejects_null_aggregateType() {
-            assertThatNullPointerException()
-                    .isThrownBy(() -> validBuilder().aggregateType(null).build())
-                    .withMessageContaining("aggregateType");
+            assertThatThrownBy(() -> validBuilder().aggregateType(null).build())
+                    .isInstanceOf(OutboxValidationException.class)
+                    .hasMessageContaining("aggregateType");
         }
 
         @Test
         void rejects_null_aggregateId() {
-            assertThatNullPointerException()
-                    .isThrownBy(() -> validBuilder().aggregateId(null).build())
-                    .withMessageContaining("aggregateId");
+            assertThatThrownBy(() -> validBuilder().aggregateId(null).build())
+                    .isInstanceOf(OutboxValidationException.class)
+                    .hasMessageContaining("aggregateId");
         }
 
         @Test
         void rejects_null_eventType() {
-            assertThatNullPointerException()
-                    .isThrownBy(() -> validBuilder().eventType(null).build())
-                    .withMessageContaining("eventType");
+            assertThatThrownBy(() -> validBuilder().eventType(null).build())
+                    .isInstanceOf(OutboxValidationException.class)
+                    .hasMessageContaining("eventType");
         }
 
         @Test
         void rejects_null_contentType() {
-            assertThatNullPointerException()
-                    .isThrownBy(() -> validBuilder().contentType(null).build())
-                    .withMessageContaining("contentType");
+            assertThatThrownBy(() -> validBuilder().contentType(null).build())
+                    .isInstanceOf(OutboxValidationException.class)
+                    .hasMessageContaining("contentType");
         }
 
         @Test
         void rejects_null_payload() {
-            assertThatNullPointerException()
-                    .isThrownBy(() -> validBuilder().payload(null).build())
-                    .withMessageContaining("payload");
+            assertThatThrownBy(() -> validBuilder().payload(null).build())
+                    .isInstanceOf(OutboxValidationException.class)
+                    .hasMessageContaining("payload");
         }
 
         @Test
         void rejects_null_headers_map_via_record_constructor() {
-            assertThatNullPointerException()
-                    .isThrownBy(
+            assertThatThrownBy(
                             () ->
                                     new OutboxEvent(
                                             null,
@@ -171,13 +169,13 @@ class OutboxEventTest {
                                             null,
                                             null,
                                             Instant.now()))
-                    .withMessageContaining("headers");
+                    .isInstanceOf(OutboxValidationException.class)
+                    .hasMessageContaining("headers");
         }
 
         @Test
         void rejects_null_occurredAt_via_record_constructor() {
-            assertThatNullPointerException()
-                    .isThrownBy(
+            assertThatThrownBy(
                             () ->
                                     new OutboxEvent(
                                             null,
@@ -189,30 +187,33 @@ class OutboxEventTest {
                                             Map.of(),
                                             null,
                                             null))
-                    .withMessageContaining("occurredAt");
+                    .isInstanceOf(OutboxValidationException.class)
+                    .hasMessageContaining("occurredAt");
         }
 
         @Test
         void rejects_null_key_in_header() {
-            assertThatNullPointerException().isThrownBy(() -> validBuilder().header(null, "v"));
+            assertThatThrownBy(() -> validBuilder().header(null, "v"))
+                    .isInstanceOf(OutboxValidationException.class);
         }
 
         @Test
         void rejects_null_value_in_header() {
-            assertThatNullPointerException().isThrownBy(() -> validBuilder().header("k", null));
+            assertThatThrownBy(() -> validBuilder().header("k", null))
+                    .isInstanceOf(OutboxValidationException.class);
         }
 
         @Test
         void rejects_null_map_in_headers() {
-            assertThatNullPointerException().isThrownBy(() -> validBuilder().headers(null));
+            assertThatThrownBy(() -> validBuilder().headers(null))
+                    .isInstanceOf(OutboxValidationException.class);
         }
 
         @Test
         void rejects_headers_map_with_null_key_via_record_constructor() {
             Map<String, String> bad = new HashMap<>();
             bad.put(null, "v");
-            assertThatNullPointerException()
-                    .isThrownBy(
+            assertThatThrownBy(
                             () ->
                                     new OutboxEvent(
                                             null,
@@ -224,15 +225,15 @@ class OutboxEventTest {
                                             bad,
                                             null,
                                             Instant.now()))
-                    .withMessageContaining("header keys");
+                    .isInstanceOf(OutboxValidationException.class)
+                    .hasMessageContaining("header keys");
         }
 
         @Test
         void rejects_headers_map_with_null_value_via_record_constructor() {
             Map<String, String> bad = new HashMap<>();
             bad.put("k", null);
-            assertThatNullPointerException()
-                    .isThrownBy(
+            assertThatThrownBy(
                             () ->
                                     new OutboxEvent(
                                             null,
@@ -244,7 +245,15 @@ class OutboxEventTest {
                                             bad,
                                             null,
                                             Instant.now()))
-                    .withMessageContaining("header values");
+                    .isInstanceOf(OutboxValidationException.class)
+                    .hasMessageContaining("header values");
+        }
+
+        @Test
+        void null_validation_failures_are_subtypes_of_OutboxException() {
+            // Sealed-hierarchy contract: a single catch (OutboxException) covers construction.
+            assertThatThrownBy(() -> validBuilder().aggregateType(null).build())
+                    .isInstanceOf(OutboxException.class);
         }
     }
 
@@ -255,29 +264,35 @@ class OutboxEventTest {
         @Test
         void rejects_blank_aggregateType() {
             assertThatThrownBy(() -> validBuilder().aggregateType("   ").build())
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxValidationException.class)
                     .hasMessageContaining("aggregateType");
         }
 
         @Test
         void rejects_blank_aggregateId() {
             assertThatThrownBy(() -> validBuilder().aggregateId("").build())
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxValidationException.class)
                     .hasMessageContaining("aggregateId");
         }
 
         @Test
         void rejects_blank_eventType() {
             assertThatThrownBy(() -> validBuilder().eventType("").build())
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxValidationException.class)
                     .hasMessageContaining("eventType");
         }
 
         @Test
         void rejects_blank_contentType() {
             assertThatThrownBy(() -> validBuilder().contentType("\t\n").build())
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxValidationException.class)
                     .hasMessageContaining("contentType");
+        }
+
+        @Test
+        void blank_validation_failures_are_subtypes_of_OutboxException() {
+            assertThatThrownBy(() -> validBuilder().aggregateType("").build())
+                    .isInstanceOf(OutboxException.class);
         }
     }
 

@@ -298,6 +298,13 @@ class OutboxAutoConfigurationTest {
         //
         // Here we let the real Micrometer autoconfigs contribute the MeterRegistry, which only
         // works if OutboxAutoConfiguration declares an `afterName` relationship to them.
+        //
+        // Tracing is disabled explicitly so MeteredOutbox stays the outermost bean: since the
+        // TracedOutbox autoconfig dropped its @ConditionalOnBean(OpenTelemetry.class) gate (so
+        // it falls back to GlobalOpenTelemetry.get() and applies whenever the OTel API is on the
+        // classpath), keeping tracing enabled here would have TracedOutbox wrap MeteredOutbox,
+        // erasing the signal this test is supposed to assert. The decoration-order contract is
+        // separately enforced by decoration_stack_traced_wraps_metered.
         new ApplicationContextRunner()
                 .withConfiguration(
                         AutoConfigurations.of(
@@ -305,6 +312,7 @@ class OutboxAutoConfigurationTest {
                                 CompositeMeterRegistryAutoConfiguration.class,
                                 SimpleMetricsExportAutoConfiguration.class,
                                 OutboxAutoConfiguration.class))
+                .withPropertyValues("io.github.lobofoltran.outbox.tracing.enabled=false")
                 .withBean(DataSource.class, () -> mock(DataSource.class))
                 .run(
                         context -> {

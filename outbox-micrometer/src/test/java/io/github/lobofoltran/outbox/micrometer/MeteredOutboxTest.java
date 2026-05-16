@@ -19,6 +19,7 @@ import java.util.function.BiPredicate;
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.OutboxException;
+import io.github.lobofoltran.outbox.OutboxValidationException;
 
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -178,9 +179,9 @@ class MeteredOutboxTest {
 
     @Test
     void rejects_null_event() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> metered.publish(null))
-                .withMessageContaining("event");
+        assertThatThrownBy(() -> metered.publish(null))
+                .isInstanceOf(OutboxValidationException.class)
+                .hasMessageContaining("event");
     }
 
     @Test
@@ -231,9 +232,9 @@ class MeteredOutboxTest {
 
     @Test
     void publish_all_rejects_null_iterable() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> metered.publishAll(null))
-                .withMessageContaining("events");
+        assertThatThrownBy(() -> metered.publishAll(null))
+                .isInstanceOf(OutboxValidationException.class)
+                .hasMessageContaining("events");
     }
 
     @Test
@@ -336,7 +337,8 @@ class MeteredOutboxTest {
         List<OutboxEvent> events = new ArrayList<>();
         events.add(event("Order", "OrderPlaced", new byte[] {1}));
         events.add(null);
-        assertThatNullPointerException().isThrownBy(() -> metered.publishAll(events));
+        assertThatThrownBy(() -> metered.publishAll(events))
+                .isInstanceOf(OutboxValidationException.class);
     }
 
     private Timer findTimer(String aggregateType, String eventType, String result) {

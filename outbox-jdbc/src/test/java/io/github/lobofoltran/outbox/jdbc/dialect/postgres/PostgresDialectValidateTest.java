@@ -8,6 +8,7 @@ package io.github.lobofoltran.outbox.jdbc.dialect.postgres;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.lobofoltran.outbox.OutboxDataException;
 import io.github.lobofoltran.outbox.OutboxEvent;
 
 import org.junit.jupiter.api.DisplayName;
@@ -56,7 +57,7 @@ class PostgresDialectValidateTest {
         void rejects_aggregateType_over_128_bytes() {
             OutboxEvent event = validBuilder().aggregateType("a".repeat(129)).build();
             assertThatThrownBy(() -> dialect.validate(event))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxDataException.class)
                     .hasMessageContaining("aggregateType")
                     .hasMessageContaining("128")
                     .hasMessageContaining("bytes");
@@ -66,7 +67,7 @@ class PostgresDialectValidateTest {
         void rejects_aggregateId_over_128_bytes() {
             OutboxEvent event = validBuilder().aggregateId("a".repeat(129)).build();
             assertThatThrownBy(() -> dialect.validate(event))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxDataException.class)
                     .hasMessageContaining("aggregateId");
         }
 
@@ -74,7 +75,7 @@ class PostgresDialectValidateTest {
         void rejects_eventType_over_128_bytes() {
             OutboxEvent event = validBuilder().eventType("a".repeat(129)).build();
             assertThatThrownBy(() -> dialect.validate(event))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxDataException.class)
                     .hasMessageContaining("eventType");
         }
 
@@ -82,7 +83,7 @@ class PostgresDialectValidateTest {
         void rejects_contentType_over_64_bytes() {
             OutboxEvent event = validBuilder().contentType("a".repeat(65)).build();
             assertThatThrownBy(() -> dialect.validate(event))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxDataException.class)
                     .hasMessageContaining("contentType")
                     .hasMessageContaining("64");
         }
@@ -91,7 +92,7 @@ class PostgresDialectValidateTest {
         void rejects_destination_over_128_bytes() {
             OutboxEvent event = validBuilder().destination("a".repeat(129)).build();
             assertThatThrownBy(() -> dialect.validate(event))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxDataException.class)
                     .hasMessageContaining("destination");
         }
 
@@ -113,7 +114,7 @@ class PostgresDialectValidateTest {
             String multibyte = "é".repeat(65);
             OutboxEvent event = validBuilder().aggregateType(multibyte).build();
             assertThatThrownBy(() -> dialect.validate(event))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxDataException.class)
                     .hasMessageContaining("aggregateType")
                     .hasMessageContaining("130");
         }
@@ -124,7 +125,7 @@ class PostgresDialectValidateTest {
             String multibyte = "é".repeat(33);
             OutboxEvent event = validBuilder().contentType(multibyte).build();
             assertThatThrownBy(() -> dialect.validate(event))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(OutboxDataException.class)
                     .hasMessageContaining("contentType")
                     .hasMessageContaining("64");
         }

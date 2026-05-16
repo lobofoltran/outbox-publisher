@@ -5,8 +5,6 @@
  */
 package io.github.lobofoltran.outbox;
 
-import java.util.Objects;
-
 /**
  * Writes domain events to the outbox table inside the caller's database transaction.
  *
@@ -35,7 +33,7 @@ public interface Outbox {
      * with the caller's business writes if that transaction aborts.
      *
      * @param event the event to persist; never {@code null}.
-     * @throws NullPointerException if {@code event} is {@code null}.
+     * @throws OutboxValidationException if {@code event} is {@code null}.
      * @throws OutboxException if the underlying store rejects the write.
      * @since 0.1.0
      */
@@ -56,12 +54,14 @@ public interface Outbox {
      *
      * @param events the events to persist; never {@code null}, individual elements must not be
      *     {@code null}.
-     * @throws NullPointerException if {@code events} or any element is {@code null}.
+     * @throws OutboxValidationException if {@code events} or any element is {@code null}.
      * @throws OutboxException if the underlying store rejects any write.
      * @since 0.1.0
      */
     default void publishAll(Iterable<OutboxEvent> events) {
-        Objects.requireNonNull(events, "events must not be null");
+        if (events == null) {
+            throw new OutboxValidationException("events must not be null");
+        }
         for (OutboxEvent event : events) {
             publish(event);
         }

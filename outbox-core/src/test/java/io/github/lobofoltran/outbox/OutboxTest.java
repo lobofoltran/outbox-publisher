@@ -6,7 +6,6 @@
 package io.github.lobofoltran.outbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
@@ -31,9 +30,9 @@ class OutboxTest {
     @Test
     void publish_all_default_rejects_null_iterable() {
         RecordingOutbox outbox = new RecordingOutbox();
-        assertThatNullPointerException()
-                .isThrownBy(() -> outbox.publishAll(null))
-                .withMessageContaining("events");
+        assertThatThrownBy(() -> outbox.publishAll(null))
+                .isInstanceOf(OutboxValidationException.class)
+                .hasMessageContaining("events");
     }
 
     @Test

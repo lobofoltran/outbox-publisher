@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -26,8 +25,13 @@ import java.util.UUID;
  * customized schema with wider columns, and (b) different databases measure column width in
  * characters or in bytes, which is a dialect concern. The dialect SPI (see {@code
  * OutboxDialect#validate(OutboxEvent)} in {@code outbox-jdbc}) owns those checks and runs them at
- * publish time so callers still get a fail-fast {@link IllegalArgumentException} before any SQL is
- * sent.
+ * publish time so callers still get a fail-fast error before any SQL is sent.
+ *
+ * <p><b>Field validation failures</b> (null required component, blank string, null header key or
+ * value) surface as {@link OutboxValidationException} — a leaf of the sealed {@link
+ * OutboxException} hierarchy. Since 0.4.0 the builder and the compact constructor no longer raise
+ * raw {@link NullPointerException} / {@link IllegalArgumentException}; a single {@code catch
+ * (OutboxException e)} around {@code builder()...build()} plus {@code publish(event)} is enough.
  *
  * <p><b>Equality:</b> the record uses the default component-wise equality. Because {@code payload}
  * is a {@code byte[]}, two events with identical bytes but distinct array instances are
@@ -69,17 +73,17 @@ public record OutboxEvent(
      * immutable. Per-dialect width limits are not enforced here — see {@code
      * OutboxDialect#validate(OutboxEvent)} in {@code outbox-jdbc}.
      *
-     * @throws NullPointerException if any required component is {@code null}.
-     * @throws IllegalArgumentException if a string component is blank.
+     * @throws OutboxValidationException if a required component is {@code null}, a string component
+     *     is blank, or {@code headers} contains a {@code null} key or value.
      */
     public OutboxEvent {
-        Objects.requireNonNull(aggregateType, "aggregateType must not be null");
-        Objects.requireNonNull(aggregateId, "aggregateId must not be null");
-        Objects.requireNonNull(eventType, "eventType must not be null");
-        Objects.requireNonNull(contentType, "contentType must not be null");
-        Objects.requireNonNull(payload, "payload must not be null");
-        Objects.requireNonNull(headers, "headers must not be null");
-        Objects.requireNonNull(occurredAt, "occurredAt must not be null");
+        requireNonNull(aggregateType, "aggregateType");
+        requireNonNull(aggregateId, "aggregateId");
+        requireNonNull(eventType, "eventType");
+        requireNonNull(contentType, "contentType");
+        requireNonNull(payload, "payload");
+        requireNonNull(headers, "headers");
+        requireNonNull(occurredAt, "occurredAt");
 
         requireNonBlank(aggregateType, "aggregateType");
         requireNonBlank(aggregateId, "aggregateId");
@@ -87,8 +91,12 @@ public record OutboxEvent(
         requireNonBlank(contentType, "contentType");
 
         for (Map.Entry<String, String> entry : headers.entrySet()) {
-            Objects.requireNonNull(entry.getKey(), "header keys must not be null");
-            Objects.requireNonNull(entry.getValue(), "header values must not be null");
+            if (entry.getKey() == null) {
+                throw new OutboxValidationException("header keys must not be null");
+            }
+            if (entry.getValue() == null) {
+                throw new OutboxValidationException("header values must not be null");
+            }
         }
 
         payload = payload.clone();
@@ -141,9 +149,16 @@ public record OutboxEvent(
         return new Builder();
     }
 
+    private static <T> T requireNonNull(T value, String name) {
+        if (value == null) {
+            throw new OutboxValidationException(name + " must not be null");
+        }
+        return value;
+    }
+
     private static void requireNonBlank(String value, String name) {
         if (value.isBlank()) {
-            throw new IllegalArgumentException(name + " must not be blank");
+            throw new OutboxValidationException(name + " must not be blank");
         }
     }
 
@@ -159,6 +174,10 @@ public record OutboxEvent(
      * </ul>
      *
      * All other fields are required and validated by the record's compact constructor.
+     *
+     * <p>Validation failures (null required argument, blank string, null header key/value) surface
+     * as {@link OutboxValidationException} — a leaf of the sealed {@link OutboxException}
+     * hierarchy.
      *
      * <p>Instances are not thread-safe.
      *
@@ -199,8 +218,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder aggregateType(String newAggregateType) {
-            Objects.requireNonNull(newAggregateType, "aggregateType must not be null");
-            this.aggregateType = newAggregateType;
+            this.aggregateType = requireNonNull(newAggregateType, "aggregateType");
             return this;
         }
 
@@ -213,8 +231,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder aggregateId(String newAggregateId) {
-            Objects.requireNonNull(newAggregateId, "aggregateId must not be null");
-            this.aggregateId = newAggregateId;
+            this.aggregateId = requireNonNull(newAggregateId, "aggregateId");
             return this;
         }
 
@@ -227,8 +244,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder eventType(String newEventType) {
-            Objects.requireNonNull(newEventType, "eventType must not be null");
-            this.eventType = newEventType;
+            this.eventType = requireNonNull(newEventType, "eventType");
             return this;
         }
 
@@ -241,8 +257,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder contentType(String newContentType) {
-            Objects.requireNonNull(newContentType, "contentType must not be null");
-            this.contentType = newContentType;
+            this.contentType = requireNonNull(newContentType, "contentType");
             return this;
         }
 
@@ -254,8 +269,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder payload(byte[] newPayload) {
-            Objects.requireNonNull(newPayload, "payload must not be null");
-            this.payload = newPayload;
+            this.payload = requireNonNull(newPayload, "payload");
             return this;
         }
 
@@ -267,7 +281,7 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder headers(Map<String, String> newHeaders) {
-            Objects.requireNonNull(newHeaders, "headers must not be null");
+            requireNonNull(newHeaders, "headers");
             this.headers.clear();
             this.headers.putAll(newHeaders);
             return this;
@@ -282,8 +296,8 @@ public record OutboxEvent(
          * @since 0.1.0
          */
         public Builder header(String key, String value) {
-            Objects.requireNonNull(key, "header key must not be null");
-            Objects.requireNonNull(value, "header value must not be null");
+            requireNonNull(key, "header key");
+            requireNonNull(value, "header value");
             this.headers.put(key, value);
             return this;
         }

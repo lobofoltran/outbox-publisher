@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
+import io.github.lobofoltran.outbox.OutboxValidationException;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
@@ -211,7 +212,9 @@ public final class TracedOutbox implements Outbox {
 
     @Override
     public void publish(OutboxEvent event) {
-        Objects.requireNonNull(event, "event must not be null");
+        if (event == null) {
+            throw new OutboxValidationException("event must not be null");
+        }
         ParsedDestination destination = parseDestination(event.destination());
         Span span =
                 tracer.spanBuilder(SPAN_NAME_PUBLISH)
@@ -262,11 +265,15 @@ public final class TracedOutbox implements Outbox {
 
     @Override
     public void publishAll(Iterable<OutboxEvent> events) {
-        Objects.requireNonNull(events, "events must not be null");
+        if (events == null) {
+            throw new OutboxValidationException("events must not be null");
+        }
         // Materialize once so the count is known up-front and so single-pass iterables work.
         List<OutboxEvent> batch = new ArrayList<>();
         for (OutboxEvent event : events) {
-            Objects.requireNonNull(event, "events must not contain null elements");
+            if (event == null) {
+                throw new OutboxValidationException("events must not contain null elements");
+            }
             batch.add(event);
         }
 
