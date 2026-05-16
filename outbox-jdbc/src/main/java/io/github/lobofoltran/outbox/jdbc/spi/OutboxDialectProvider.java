@@ -27,17 +27,25 @@ public interface OutboxDialectProvider {
      * Returns {@code true} if this provider's dialect can handle the database described by {@code
      * metaData}.
      *
+     * @param metaData the JDBC connection metadata for the database being inspected.
+     * @return {@code true} if this provider's dialect should be used for this database.
      * @throws SQLException if metadata access fails. Auto-detection treats any thrown {@code
      *     SQLException} as "this provider does not match" and tries the next one.
      */
     boolean supports(DatabaseMetaData metaData) throws SQLException;
 
-    /** Creates a fresh dialect instance. */
+    /**
+     * Creates a fresh dialect instance.
+     *
+     * @return a new {@link OutboxDialect}.
+     */
     OutboxDialect create();
 
     /**
      * Priority used to break ties when multiple providers report {@link #supports supports} for the
      * same database. Higher wins. Built-in providers return {@code 0}.
+     *
+     * @return the provider priority; higher values take precedence.
      */
     default int priority() {
         return 0;
