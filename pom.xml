@@ -102,12 +102,10 @@
         <junit.version>6.0.3</junit.version>
         <assertj.version>3.27.0</assertj.version>
         <mockito.version>5.14.2</mockito.version>
-        <!-- Pinned to the 1.x line. Testcontainers 2.x renamed every artifact (e.g.
-             `postgresql` -> `testcontainers-postgresql`); migrating is a separate PR. -->
         <testcontainers.version>1.21.4</testcontainers.version>
         <postgresql.version>42.7.11</postgresql.version>
         <micrometer.version>1.14.2</micrometer.version>
-        <spring-boot.version>3.4.1</spring-boot.version>
+        <spring-boot.version>4.0.6</spring-boot.version>
     </properties>
 
     <dependencyManagement>
@@ -156,9 +154,6 @@
                 <version>${micrometer.version}</version>
             </dependency>
 
-            <!-- Imported BOMs. Order matters: the first BOM to declare an artifact wins.
-                 testcontainers-bom MUST come before spring-boot-dependencies so the
-                 newer 1.21.x line wins over Spring Boot 3.4.1's pinned 1.20.4. -->
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
@@ -377,10 +372,6 @@
                         <targetClasses>
                             <param>io.github.lobofoltran.outbox.*</param>
                         </targetClasses>
-                        <!-- Integration tests (suffix IT) cannot run inside PIT's coverage
-                             minion — they need Testcontainers/Docker. PIT focuses on unit
-                             mutations against the production classes; JaCoCo (line+branch)
-                             is the source of truth that ITs covered everything. -->
                         <excludedTestClasses>
                             <excludedTestClass>*IT</excludedTestClass>
                         </excludedTestClasses>
@@ -425,9 +416,6 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
             </plugin>
-            <!-- Failsafe is not part of Maven's default lifecycle bindings, so we activate
-                 it here for every child module. The IT executions are declared in the
-                 pluginManagement entry above. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
