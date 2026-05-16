@@ -148,10 +148,15 @@ public final class TracedOutbox implements Outbox {
                         .setSpanKind(SpanKind.PRODUCER)
                         .setAttribute(ATTR_MESSAGING_SYSTEM, MESSAGING_SYSTEM)
                         .setAttribute(ATTR_MESSAGING_OPERATION, OPERATION_PUBLISH)
-                        .setAttribute(ATTR_MESSAGING_MESSAGE_ID, event.id().toString())
                         .setAttribute(ATTR_OUTBOX_AGGREGATE_TYPE, event.aggregateType())
                         .setAttribute(ATTR_OUTBOX_EVENT_TYPE, event.eventType())
                         .startSpan();
+        // Id ownership belongs to JdbcOutbox: when the caller leaves id=null, the JDBC layer
+        // generates one. The decorator runs before that, so we simply omit the attribute
+        // rather than fabricate a value that would not match the row eventually written.
+        if (event.id() != null) {
+            span.setAttribute(ATTR_MESSAGING_MESSAGE_ID, event.id().toString());
+        }
         if (event.destination() != null) {
             span.setAttribute(ATTR_MESSAGING_DESTINATION_NAME, event.destination());
         }
