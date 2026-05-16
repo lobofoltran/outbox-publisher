@@ -58,7 +58,10 @@ public record OutboxProperties(
      * Tracing decorator settings. Bound under {@code io.github.lobofoltran.outbox.tracing}.
      *
      * @param enabled when {@code false}, the {@code TracedOutbox} decorator is not applied even if
-     *     OpenTelemetry is on the classpath and an {@code OpenTelemetry} bean exists.
+     *     OpenTelemetry is on the classpath. When {@code true} (default), the decorator is applied
+     *     whenever the OpenTelemetry API is on the classpath; the {@code OpenTelemetry} instance is
+     *     resolved from a Spring bean if present, falling back to {@code GlobalOpenTelemetry.get()}
+     *     (no-op when no SDK has been installed).
      * @since 0.1.0
      */
     public record Tracing(@DefaultValue("true") boolean enabled) {}

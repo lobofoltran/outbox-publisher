@@ -37,26 +37,37 @@ import org.springframework.core.annotation.Order;
 
 class OutboxAutoConfigurationTest {
 
+    // Default the shared runner with tracing disabled. After the DEBT-03 fix, the TracedOutbox
+    // BPP is no longer gated on the presence of an OpenTelemetry bean (it falls back to
+    // GlobalOpenTelemetry.get()), so every bean would otherwise be wrapped — which would clobber
+    // the metrics-/user-bean assertions in most tests in this class. Tracing-specific tests turn
+    // tracing back on explicitly via withPropertyValues(...).
     private final ApplicationContextRunner runner =
             new ApplicationContextRunner()
                     .withConfiguration(AutoConfigurations.of(OutboxAutoConfiguration.class))
-                    .withBean(DataSource.class, () -> mock(DataSource.class));
+                    .withBean(DataSource.class, () -> mock(DataSource.class))
+                    .withPropertyValues("io.github.lobofoltran.outbox.tracing.enabled=false");
 
     @Test
     @DisplayName("publishes an Outbox bean with default configuration")
     void publishes_outbox_bean_with_defaults() {
-        runner.run(
-                context -> {
-                    assertThat(context).hasSingleBean(Outbox.class);
-                    assertThat(context).hasSingleBean(OutboxProperties.class);
-                    OutboxProperties props = context.getBean(OutboxProperties.class);
-                    assertThat(props.enabled()).isTrue();
-                    assertThat(props.tableName()).isEqualTo("outbox");
-                    assertThat(props.schema()).isNull();
-                    assertThat(props.metrics().enabled()).isTrue();
-                    assertThat(props.tracing().enabled()).isTrue();
-                    assertThat(props.health().enabled()).isTrue();
-                });
+        // Use a fresh runner without the class-level tracing override so we observe the actual
+        // property defaults.
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(OutboxAutoConfiguration.class))
+                .withBean(DataSource.class, () -> mock(DataSource.class))
+                .run(
+                        context -> {
+                            assertThat(context).hasSingleBean(Outbox.class);
+                            assertThat(context).hasSingleBean(OutboxProperties.class);
+                            OutboxProperties props = context.getBean(OutboxProperties.class);
+                            assertThat(props.enabled()).isTrue();
+                            assertThat(props.tableName()).isEqualTo("outbox");
+                            assertThat(props.schema()).isNull();
+                            assertThat(props.metrics().enabled()).isTrue();
+                            assertThat(props.tracing().enabled()).isTrue();
+                            assertThat(props.health().enabled()).isTrue();
+                        });
     }
 
     @Test
@@ -281,7 +292,8 @@ class OutboxAutoConfigurationTest {
         // Inner layers are implied: both BeanPostProcessors fire (asserted in the dedicated
         // metrics-only and tracing-only tests) and the only way both can fire and produce a
         // TracedOutbox-typed bean is if metrics ran first and tracing ran second on top of it.
-        runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+        runner.withPropertyValues("io.github.lobofoltran.outbox.tracing.enabled=true")
+                .withBean(MeterRegistry.class, SimpleMeterRegistry::new)
                 .withBean(OpenTelemetry.class, OutboxAutoConfigurationTest::stubOpenTelemetry)
                 .run(
                         context -> {
@@ -296,7 +308,8 @@ class OutboxAutoConfigurationTest {
             "tracing BPP caches the Tracer once and reuses it across multiple Outbox beans"
                     + " (covers the double-checked-locking fast path)")
     void tracing_bpp_caches_tracer_across_invocations() {
-        runner.withBean(OpenTelemetry.class, OutboxAutoConfigurationTest::stubOpenTelemetry)
+        runner.withPropertyValues("io.github.lobofoltran.outbox.tracing.enabled=true")
+                .withBean(OpenTelemetry.class, OutboxAutoConfigurationTest::stubOpenTelemetry)
                 .withUserConfiguration(TwoUserOutboxesConfig.class)
                 .run(
                         context -> {
