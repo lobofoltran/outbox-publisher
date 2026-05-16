@@ -33,6 +33,7 @@
         <module>outbox-jdbc</module>
         <module>outbox-spring</module>
         <module>outbox-micrometer</module>
+        <module>outbox-otel</module>
         <module>outbox-schema</module>
         <module>outbox-bom</module>
     </modules>
@@ -105,6 +106,7 @@
         <testcontainers.version>1.21.4</testcontainers.version>
         <postgresql.version>42.7.11</postgresql.version>
         <micrometer.version>1.14.2</micrometer.version>
+        <opentelemetry.version>1.46.0</opentelemetry.version>
         <spring-boot.version>4.0.6</spring-boot.version>
     </properties>
 
@@ -136,6 +138,11 @@
                 <artifactId>outbox-micrometer</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>outbox-otel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- Runtime / API deps -->
             <dependency>
@@ -152,6 +159,13 @@
                 <groupId>io.micrometer</groupId>
                 <artifactId>micrometer-core</artifactId>
                 <version>${micrometer.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${opentelemetry.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
 
             <dependency>

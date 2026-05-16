@@ -1,0 +1,132 @@
+package io.github.lobofoltran.outbox.otel;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+import io.github.lobofoltran.outbox.Outbox;
+import io.github.lobofoltran.outbox.OutboxEvent;
+
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
+
+/**
+ * Decorator that wraps every {@link Outbox#publish publish} and {@link Outbox#publishAll
+ * publishAll} call in an OpenTelemetry span using the {@code messaging.*} semantic conventions.
+ *
+ * <p>Spans emitted:
+ *
+ * <ul>
+ *   <li>{@code outbox publish} — single event publish. Span kind {@link SpanKind#PRODUCER}.
+ *       Attributes: {@code messaging.system=outbox}, {@code messaging.operation=publish}, {@code
+ *       messaging.message.id}, {@code messaging.destination.name} (when non-null), {@code
+ *       outbox.aggregate_type}, {@code outbox.event_type}.
+ *   <li>{@code outbox publish_batch} — batch publish. Span kind {@link SpanKind#PRODUCER}.
+ *       Attributes: {@code messaging.system=outbox}, {@code messaging.operation=publish_batch},
+ *       {@code messaging.batch.message_count}.
+ * </ul>
+ *
+ * <p>By design, neither {@code aggregate_id} nor {@code destination} appears in the span name
+ * (low-cardinality only). The same cardinality rules that govern metrics in ADR-0004 apply to span
+ * names here — see ADR-0014.
+ *
+ * <p>On exception, the span status is set to {@link StatusCode#ERROR} and the exception is recorded
+ * via {@link Span#recordException(Throwable)}; the original exception is rethrown unchanged.
+ *
+ * <p>Instances are thread-safe: the {@link Tracer} contract permits concurrent use, and the
+ * decorator holds no mutable state of its own.
+ */
+public final class TracedOutbox implements Outbox {
+
+    static final String SPAN_NAME_PUBLISH = "outbox publish";
+    static final String SPAN_NAME_PUBLISH_BATCH = "outbox publish_batch";
+
+    static final AttributeKey<String> ATTR_MESSAGING_SYSTEM =
+            AttributeKey.stringKey("messaging.system");
+    static final AttributeKey<String> ATTR_MESSAGING_OPERATION =
+            AttributeKey.stringKey("messaging.operation");
+    static final AttributeKey<String> ATTR_MESSAGING_DESTINATION_NAME =
+            AttributeKey.stringKey("messaging.destination.name");
+    static final AttributeKey<String> ATTR_MESSAGING_MESSAGE_ID =
+            AttributeKey.stringKey("messaging.message.id");
+    static final AttributeKey<Long> ATTR_MESSAGING_BATCH_MESSAGE_COUNT =
+            AttributeKey.longKey("messaging.batch.message_count");
+    static final AttributeKey<String> ATTR_OUTBOX_AGGREGATE_TYPE =
+            AttributeKey.stringKey("outbox.aggregate_type");
+    static final AttributeKey<String> ATTR_OUTBOX_EVENT_TYPE =
+            AttributeKey.stringKey("outbox.event_type");
+
+    private static final String MESSAGING_SYSTEM = "outbox";
+    private static final String OPERATION_PUBLISH = "publish";
+    private static final String OPERATION_PUBLISH_BATCH = "publish_batch";
+
+    private final Outbox delegate;
+    private final Tracer tracer;
+
+    public TracedOutbox(Outbox delegate, Tracer tracer) {
+        this.delegate = Objects.requireNonNull(delegate, "delegate must not be null");
+        this.tracer = Objects.requireNonNull(tracer, "tracer must not be null");
+    }
+
+    @Override
+    public void publish(OutboxEvent event) {
+        Objects.requireNonNull(event, "event must not be null");
+        Span span =
+                tracer.spanBuilder(SPAN_NAME_PUBLISH)
+                        .setSpanKind(SpanKind.PRODUCER)
+                        .setAttribute(ATTR_MESSAGING_SYSTEM, MESSAGING_SYSTEM)
+                        .setAttribute(ATTR_MESSAGING_OPERATION, OPERATION_PUBLISH)
+                        .setAttribute(ATTR_MESSAGING_MESSAGE_ID, event.id().toString())
+                        .setAttribute(ATTR_OUTBOX_AGGREGATE_TYPE, event.aggregateType())
+                        .setAttribute(ATTR_OUTBOX_EVENT_TYPE, event.eventType())
+                        .startSpan();
+        if (event.destination() != null) {
+            span.setAttribute(ATTR_MESSAGING_DESTINATION_NAME, event.destination());
+        }
+        runUnderSpan(span, () -> delegate.publish(event));
+    }
+
+    @Override
+    public void publishAll(Iterable<OutboxEvent> events) {
+        Objects.requireNonNull(events, "events must not be null");
+        // Materialize once so the count is known up-front and so single-pass iterables work.
+        List<OutboxEvent> batch = new ArrayList<>();
+        for (OutboxEvent event : events) {
+            Objects.requireNonNull(event, "events must not contain null elements");
+            batch.add(event);
+        }
+
+        Span span =
+                tracer.spanBuilder(SPAN_NAME_PUBLISH_BATCH)
+                        .setSpanKind(SpanKind.PRODUCER)
+                        .setAttribute(ATTR_MESSAGING_SYSTEM, MESSAGING_SYSTEM)
+                        .setAttribute(ATTR_MESSAGING_OPERATION, OPERATION_PUBLISH_BATCH)
+                        .setAttribute(ATTR_MESSAGING_BATCH_MESSAGE_COUNT, (long) batch.size())
+                        .startSpan();
+        runUnderSpan(span, () -> delegate.publishAll(batch));
+    }
+
+    /**
+     * Runs the action with the given span made current, recording any escaping exception on the
+     * span before rethrowing it. {@link RuntimeException} is the widest type that can escape a
+     * {@link Outbox#publish} or {@link Outbox#publishAll} call; checkstyle's {@code IllegalCatch}
+     * rule is suppressed here for that reason — narrowing further would silently lose error
+     * recording for legitimate unchecked exceptions thrown by buggy delegates.
+     */
+    @SuppressWarnings("checkstyle:IllegalCatch")
+    private static void runUnderSpan(Span span, Runnable action) {
+        try (Scope ignored = span.makeCurrent()) {
+            action.run();
+        } catch (RuntimeException ex) {
+            span.recordException(ex);
+            span.setStatus(StatusCode.ERROR, ex.getClass().getSimpleName());
+            throw ex;
+        } finally {
+            span.end();
+        }
+    }
+}

@@ -17,6 +17,7 @@ The application **does not know** how those events will be delivered to the outs
 - [Multi-module / hexagonal projects](#multi-module--hexagonal-projects)
 - [Configuration reference](#configuration-reference)
 - [Metrics](#metrics)
+- [Tracing](#tracing)
 - [Operating model: how events get delivered](#operating-model-how-events-get-delivered)
 - [Compatibility matrix](#compatibility-matrix)
 - [Build, test, release](#build-test-release)
@@ -84,6 +85,7 @@ The library ships six Maven modules:
 | `outbox-jdbc` | JDBC implementation of `Outbox` | No (runtime) |
 | `outbox-spring` | Spring Boot autoconfiguration | No (runtime) |
 | `outbox-micrometer` | `MeteredOutbox` decorator — Micrometer Timer/Counter on every publish | No (runtime, optional) |
+| `outbox-otel` | `TracedOutbox` decorator — OpenTelemetry `messaging.*` span on every publish | No (runtime, optional) |
 | `outbox-schema` | Example SQL DDL as classpath resources | No (optional) |
 | `outbox-bom` | Bill of Materials for version management | imported in BOM |
 
@@ -492,6 +494,7 @@ Spring Boot properties (all optional unless noted):
 | `io.github.lobofoltran.outbox.id-generator` | `UUID_V7` | `UUID_V7` or `UUID_V4`. |
 | `io.github.lobofoltran.outbox.clock` | _(system)_ | Override for tests. |
 | `io.github.lobofoltran.outbox.metrics.enabled` | `true` | When `false`, skip the `MeteredOutbox` wrapper even if Micrometer is present. |
+| `io.github.lobofoltran.outbox.tracing.enabled` | `true` | When `false`, skip the `TracedOutbox` wrapper even if OpenTelemetry is present. |
 
 Plain JDBC: same options exposed via `JdbcOutbox.Builder`.
 
@@ -547,6 +550,56 @@ Outbox raw = JdbcOutbox.builder()
     .build();
 
 Outbox outbox = new MeteredOutbox(raw, meterRegistry);
+```
+
+## Tracing
+
+When [OpenTelemetry](https://opentelemetry.io/) is on the classpath and an `OpenTelemetry` bean exists in the Spring context, `outbox-spring` automatically wraps the `Outbox` bean with `TracedOutbox`. No code changes required.
+
+### Add the module
+
+```xml
+<dependency>
+    <groupId>io.github.lobofoltran</groupId>
+    <artifactId>outbox-otel</artifactId>
+    <scope>runtime</scope>
+</dependency>
+```
+
+The OpenTelemetry API is declared `<scope>provided</scope>` — bring your own version (typically the one bundled with your OpenTelemetry Java agent or your application's `opentelemetry-bom` import). The library is binary-compatible with any OpenTelemetry 1.x API.
+
+### What gets emitted
+
+| Span | Span kind | Triggered by | Attributes |
+| --- | --- | --- | --- |
+| `outbox publish` | `PRODUCER` | `publish(OutboxEvent)` | `messaging.system=outbox`, `messaging.operation=publish`, `messaging.message.id`, `messaging.destination.name` (when non-null), `outbox.aggregate_type`, `outbox.event_type` |
+| `outbox publish_batch` | `PRODUCER` | `publishAll(Iterable<OutboxEvent>)` | `messaging.system=outbox`, `messaging.operation=publish_batch`, `messaging.batch.message_count` |
+
+`messaging.*` keys follow the OpenTelemetry semantic conventions for messaging systems. On exception, the span status is set to `ERROR` and the exception is recorded.
+
+### Cardinality policy
+
+Span names are deliberately low-cardinality — neither `aggregate_id` nor `destination` ever appears in the span name. The same rules that govern metric tags (ADR-0004) apply here. See ADR-0014.
+
+### Opt-out
+
+```yaml
+io.github.lobofoltran.outbox.tracing.enabled: false
+```
+
+The `Outbox` bean is published unwrapped (no `TracedOutbox`).
+
+### Plain JDBC (no Spring)
+
+Wrap manually:
+
+```java
+Outbox raw = JdbcOutbox.builder()
+    .connectionSupplier(() -> currentTxConnection(ds))
+    .build();
+
+Tracer tracer = openTelemetry.getTracer("io.github.lobofoltran.outbox");
+Outbox outbox = new TracedOutbox(raw, tracer);
 ```
 
 ## Operating model: how events get delivered
