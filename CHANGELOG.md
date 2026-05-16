@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/). Releases are managed automatically by [release-please](https://github.com/googleapis/release-please).
 
+## [0.4.0](https://github.com/lobofoltran/outbox-publisher/compare/v0.3.0...v0.4.0) (2026-05-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **outbox-core:** OutboxEvent.Builder and the OutboxEvent compact constructor no longer throw NullPointerException / IllegalArgumentException; they throw OutboxValidationException (extends OutboxException). Callers that explicitly catch NPE/IAE from event construction must update their catch blocks. PostgresDialect.validate() likewise throws OutboxDataException instead of IllegalArgumentException.
+
+### Features
+
+* **outbox-core:** close sealed hierarchy with OutboxValidationException (DEBT-08) ([#70](https://github.com/lobofoltran/outbox-publisher/issues/70)) ([b2f75d8](https://github.com/lobofoltran/outbox-publisher/commit/b2f75d8509b7b9efecf02bd08772d10aea49568d))
+* **outbox-otel:** strip URI scheme from messaging.destination.name ([#67](https://github.com/lobofoltran/outbox-publisher/issues/67)) ([cad4c08](https://github.com/lobofoltran/outbox-publisher/commit/cad4c08cdde463c463e4124f15d96f5bc7cd2bcc))
+
+
+### Bug Fixes
+
+* **outbox-spring:** order autoconfig after Micrometer & OTel autoconfigs ([#66](https://github.com/lobofoltran/outbox-publisher/issues/66)) ([fb61f05](https://github.com/lobofoltran/outbox-publisher/commit/fb61f05c8e98eff748bf5b1fc37d45ca26c465e7))
+* **outbox-spring:** resolve OpenTelemetry from global when no bean is registered ([#65](https://github.com/lobofoltran/outbox-publisher/issues/65)) ([e0ccdf7](https://github.com/lobofoltran/outbox-publisher/commit/e0ccdf7af9cd0fd92b9eec7fe83581f91d98e111))
+* **outbox-spring:** warn instead of silently skipping decorators when collaborator beans are missing ([#69](https://github.com/lobofoltran/outbox-publisher/issues/69)) ([e74c9c0](https://github.com/lobofoltran/outbox-publisher/commit/e74c9c0e2bc21279c73f4329c24c3e39958ab7a3))
+
 ## [0.3.0](https://github.com/lobofoltran/outbox-publisher/compare/v0.2.0...v0.3.0) (2026-05-16)
 
 
