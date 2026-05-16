@@ -18,18 +18,24 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>outbox-core</artifactId>
         </dependency>
+        <!-- Compile dep. Spring Boot consumers almost always want JdbcOutbox transitively;
+             those bringing a different Outbox impl can <exclusion> this. The autoconfig
+             keeps @ConditionalOnClass(JdbcOutbox.class) so the bean still backs off when
+             the class is genuinely absent. -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>outbox-jdbc</artifactId>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>
+        <!-- Spring Boot 4 split auto-configurations into per-domain jars.
+             spring-boot-jdbc hosts DataSourceAutoConfiguration and brings spring-jdbc
+             (with DataSourceUtils) transitively. -->
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-jdbc</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-jdbc</artifactId>
         </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>
@@ -42,6 +48,20 @@
             <optional>true</optional>
         </dependency>
 
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>outbox-schema</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- spring-boot-jdbc only ships the auto-configuration. Tests need a real
+             connection pool implementation so DataSourceAutoConfiguration produces a
+             DataSource bean. We pin HikariCP for the ITs; the published library does
+             not force any pool on consumers. -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -58,7 +78,22 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
