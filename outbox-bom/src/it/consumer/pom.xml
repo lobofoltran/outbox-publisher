@@ -1,10 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Smoke test for the outbox-bom: imports the BOM and declares every published
-  module without a <version> element. If Maven resolves all seven artifacts at
-  the project's version, the BOM is doing its job. Driven by maven-invoker-plugin
-  during outbox-bom's verify phase.
--->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">

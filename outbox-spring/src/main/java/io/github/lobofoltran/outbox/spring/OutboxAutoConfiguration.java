@@ -5,6 +5,9 @@
  */
 package io.github.lobofoltran.outbox.spring;
 
+import java.util.List;
+import java.util.Set;
+import java.util.function.BiPredicate;
 import javax.sql.DataSource;
 
 import io.github.lobofoltran.outbox.Outbox;
@@ -70,7 +73,7 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
  * {@code - 200}) and runs first, seeing the bare {@link JdbcOutbox}; the tracing BPP carries {@link
  * Ordered#LOWEST_PRECEDENCE} {@code - 100} and runs last, wrapping the already-metered delegate.
  * The effect is that the metric increments and the OpenTelemetry span share the same logical
- * operation: the metric is recorded inside the producer span. See ADR-0017.
+ * operation: the metric is recorded inside the producer span.
  *
  * <p>Both decorators are opt-out via the nested {@link OutboxProperties.Metrics metrics.enabled}
  * and {@link OutboxProperties.Tracing tracing.enabled} switches.
@@ -143,15 +146,17 @@ public class OutboxAutoConfiguration {
         // i.e. the wrong way round).
         @Bean
         static MetricsBeanPostProcessor outboxMetricsBeanPostProcessor(
-                ObjectProvider<MeterRegistry> registryProvider) {
-            return new MetricsBeanPostProcessor(registryProvider);
+                ObjectProvider<MeterRegistry> registryProvider,
+                ObjectProvider<OutboxProperties> propertiesProvider) {
+            return new MetricsBeanPostProcessor(registryProvider, propertiesProvider);
         }
 
         /**
          * Decorates {@link Outbox} beans with {@link MeteredOutbox}. Implements {@link Ordered}
          * with {@link Ordered#LOWEST_PRECEDENCE} {@code - 200} so it runs <em>before</em> the
          * tracing BPP (lower order values are invoked first), producing the inner {@code
-         * MeteredOutbox} layer that tracing then wraps. See ADR-0017 and the class javadoc.
+         * MeteredOutbox} layer that tracing then wraps. See the class javadoc for the full
+         * decoration-order rationale.
          *
          * <p>{@link Ordered} is implemented on the BPP class itself rather than via {@code @Order}
          * on the {@code @Bean} factory method because Spring's BPP registration sorts by {@link
@@ -161,15 +166,24 @@ public class OutboxAutoConfiguration {
         static final class MetricsBeanPostProcessor implements BeanPostProcessor, Ordered {
 
             private final ObjectProvider<MeterRegistry> registryProvider;
+            private final ObjectProvider<OutboxProperties> propertiesProvider;
 
-            MetricsBeanPostProcessor(ObjectProvider<MeterRegistry> registryProvider) {
+            MetricsBeanPostProcessor(
+                    ObjectProvider<MeterRegistry> registryProvider,
+                    ObjectProvider<OutboxProperties> propertiesProvider) {
                 this.registryProvider = registryProvider;
+                this.propertiesProvider = propertiesProvider;
             }
 
             @Override
             public Object postProcessAfterInitialization(Object bean, String name) {
                 if (bean instanceof Outbox outbox && !(bean instanceof MeteredOutbox)) {
-                    return new MeteredOutbox(outbox, registryProvider.getObject());
+                    OutboxProperties.Metrics metrics = propertiesProvider.getObject().metrics();
+                    return new MeteredOutbox(
+                            outbox,
+                            registryProvider.getObject(),
+                            buildPredicate(metrics.eventTypeAllowlist()),
+                            metrics.tagFallback());
                 }
                 return bean;
             }
@@ -177,6 +191,22 @@ public class OutboxAutoConfiguration {
             @Override
             public int getOrder() {
                 return Ordered.LOWEST_PRECEDENCE - 200;
+            }
+
+            /**
+             * Builds the {@code (tagName, value) -> keep?} predicate from properties. An empty
+             * allowlist keeps the v0.1 pass-through default; a non-empty allowlist filters the
+             * {@code event_type} tag and ignores other tag names.
+             */
+            private static BiPredicate<String, String> buildPredicate(List<String> allowlist) {
+                // The Spring binder materializes an empty list when the property is absent
+                // (@DefaultValue on a List), so null is not a configuration we have to defend
+                // against here.
+                if (allowlist.isEmpty()) {
+                    return (tag, value) -> true;
+                }
+                Set<String> allowed = Set.copyOf(allowlist);
+                return (tag, value) -> !"event_type".equals(tag) || allowed.contains(value);
             }
         }
     }
@@ -211,7 +241,7 @@ public class OutboxAutoConfiguration {
          *
          * <p>Implements {@link Ordered} with {@link Ordered#LOWEST_PRECEDENCE} {@code - 100} so it
          * runs <em>after</em> the metrics BPP (higher order value is invoked later), wrapping the
-         * already-metered delegate. See ADR-0017.
+         * already-metered delegate.
          */
         static final class TracingBeanPostProcessor implements BeanPostProcessor, Ordered {
 

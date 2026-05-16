@@ -5,6 +5,7 @@
  */
 package io.github.lobofoltran.outbox.jdbc.dialect.postgres;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -13,6 +14,7 @@ import java.util.Set;
 
 import io.github.lobofoltran.outbox.OutboxConfigurationException;
 import io.github.lobofoltran.outbox.OutboxDataException;
+import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.OutboxException;
 import io.github.lobofoltran.outbox.OutboxIntegrityException;
 import io.github.lobofoltran.outbox.OutboxTransientException;
@@ -29,7 +31,7 @@ import io.github.lobofoltran.outbox.jdbc.spi.TableRef;
  *   <li>the {@code ?::jsonb} cast for the {@code headers} column;
  *   <li>the {@code TIMESTAMP WITH TIMEZONE} binding for {@code occurred_at} (so the database
  *       round-trips a true {@link java.time.Instant}, immune to JVM/session timezone changes);
- *   <li>the SQLState-to-{@link OutboxException} mapping documented in ADR-0008.
+ *   <li>the SQLState-to-{@link OutboxException} mapping for the sealed exception hierarchy.
  * </ul>
  *
  * <p>This class is in an internal package and is <em>not</em> exported by the {@code outbox-jdbc}
@@ -39,6 +41,16 @@ import io.github.lobofoltran.outbox.jdbc.spi.TableRef;
  * @since 0.1.0
  */
 public final class PostgresDialect implements OutboxDialect {
+
+    // Width limits of the reference schema in outbox-schema/sql/postgres/outbox-publisher.sql.
+    // Checked here as UTF-8 byte lengths — that is the upper bound on what PostgreSQL will store
+    // even when VARCHAR(n) is character-counted, and it stays correct for adopters who run the
+    // same column definitions on a byte-counted database via a different dialect.
+    private static final int MAX_AGGREGATE_TYPE_BYTES = 128;
+    private static final int MAX_AGGREGATE_ID_BYTES = 128;
+    private static final int MAX_EVENT_TYPE_BYTES = 128;
+    private static final int MAX_CONTENT_TYPE_BYTES = 64;
+    private static final int MAX_DESTINATION_BYTES = 128;
 
     private static final Set<DialectCapability> CAPABILITIES =
             EnumSet.of(
@@ -98,5 +110,24 @@ public final class PostgresDialect implements OutboxDialect {
     @Override
     public Set<DialectCapability> capabilities() {
         return CAPABILITIES;
+    }
+
+    @Override
+    public void validate(OutboxEvent event) {
+        requireMaxBytes(event.aggregateType(), "aggregateType", MAX_AGGREGATE_TYPE_BYTES);
+        requireMaxBytes(event.aggregateId(), "aggregateId", MAX_AGGREGATE_ID_BYTES);
+        requireMaxBytes(event.eventType(), "eventType", MAX_EVENT_TYPE_BYTES);
+        requireMaxBytes(event.contentType(), "contentType", MAX_CONTENT_TYPE_BYTES);
+        if (event.destination() != null) {
+            requireMaxBytes(event.destination(), "destination", MAX_DESTINATION_BYTES);
+        }
+    }
+
+    private static void requireMaxBytes(String value, String name, int max) {
+        int bytes = value.getBytes(StandardCharsets.UTF_8).length;
+        if (bytes > max) {
+            throw new IllegalArgumentException(
+                    name + " must be at most " + max + " bytes (UTF-8), got " + bytes + " bytes");
+        }
     }
 }

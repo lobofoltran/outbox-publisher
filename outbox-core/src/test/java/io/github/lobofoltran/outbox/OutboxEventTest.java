@@ -98,21 +98,22 @@ class OutboxEventTest {
         }
 
         @Test
-        void accepts_max_length_strings() {
-            String s128 = "a".repeat(128);
-            String s64 = "b".repeat(64);
+        void accepts_arbitrarily_long_strings_at_the_record_level() {
+            // The record itself does not enforce width — that is a dialect concern. See
+            // PostgresDialectValidateTest for the publish-time check.
+            String wide = "a".repeat(1024);
             OutboxEvent event =
                     OutboxEvent.builder()
-                            .aggregateType(s128)
-                            .aggregateId(s128)
-                            .eventType(s128)
-                            .contentType(s64)
-                            .destination(s128)
+                            .aggregateType(wide)
+                            .aggregateId(wide)
+                            .eventType(wide)
+                            .contentType(wide)
+                            .destination(wide)
                             .payload(OK_PAYLOAD)
                             .build();
-            assertThat(event.aggregateType()).hasSize(128);
-            assertThat(event.contentType()).hasSize(64);
-            assertThat(event.destination()).hasSize(128);
+            assertThat(event.aggregateType()).hasSize(1024);
+            assertThat(event.contentType()).hasSize(1024);
+            assertThat(event.destination()).hasSize(1024);
         }
     }
 
@@ -277,53 +278,6 @@ class OutboxEventTest {
             assertThatThrownBy(() -> validBuilder().contentType("\t\n").build())
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("contentType");
-        }
-    }
-
-    @Nested
-    @DisplayName("length validation")
-    class LengthValidation {
-
-        @Test
-        void rejects_aggregateType_over_128_chars() {
-            String tooLong = "a".repeat(129);
-            assertThatThrownBy(() -> validBuilder().aggregateType(tooLong).build())
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("aggregateType")
-                    .hasMessageContaining("128");
-        }
-
-        @Test
-        void rejects_aggregateId_over_128_chars() {
-            String tooLong = "a".repeat(129);
-            assertThatThrownBy(() -> validBuilder().aggregateId(tooLong).build())
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("aggregateId");
-        }
-
-        @Test
-        void rejects_eventType_over_128_chars() {
-            String tooLong = "a".repeat(129);
-            assertThatThrownBy(() -> validBuilder().eventType(tooLong).build())
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("eventType");
-        }
-
-        @Test
-        void rejects_contentType_over_64_chars() {
-            String tooLong = "a".repeat(65);
-            assertThatThrownBy(() -> validBuilder().contentType(tooLong).build())
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("contentType")
-                    .hasMessageContaining("64");
-        }
-
-        @Test
-        void rejects_destination_over_128_chars() {
-            String tooLong = "a".repeat(129);
-            assertThatThrownBy(() -> validBuilder().destination(tooLong).build())
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("destination");
         }
     }
 

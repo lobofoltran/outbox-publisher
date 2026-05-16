@@ -44,16 +44,16 @@ import org.junit.jupiter.api.Test;
  * <p>External dialect authors extend this class, return their {@link OutboxDialect}, a {@link
  * DataSource} pointing at a real database (typically Testcontainers-backed), and a callback that
  * applies the publisher DDL on a fresh {@link Connection}. The full suite then verifies that the
- * dialect satisfies the runtime contract documented in ADR-0016 — covering happy-path inserts,
- * transactional semantics, autocommit refusal, SQLState classification, and capability-aware
- * idempotency / fallback behavior.
+ * dialect satisfies the runtime contract covering happy-path inserts, transactional semantics,
+ * autocommit refusal, SQLState classification, and capability-aware idempotency / fallback
+ * behavior.
  *
  * <p>Capability-gated tests use {@link org.junit.jupiter.api.Assumptions} so a dialect that does
  * not advertise a capability is not penalized; a paired test asserts the documented fallback
  * behavior instead.
  *
- * <p>The class lives in {@code src/main/java} so it ships in {@code outbox-tck}'s main JAR. See
- * ADR-0016 for the rationale and the full enumeration of contract tests.
+ * <p>The class lives in {@code src/main/java} so it ships in {@code outbox-tck}'s main JAR (no
+ * {@code classifier=tests}), making it consumable as a regular {@code test}-scope dependency.
  *
  * @since 0.1.0
  */

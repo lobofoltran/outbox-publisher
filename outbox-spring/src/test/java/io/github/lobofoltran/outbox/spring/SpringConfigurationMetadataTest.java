@@ -33,6 +33,8 @@ class SpringConfigurationMetadataTest {
                 .contains("\"name\": \"io.github.lobofoltran.outbox.enabled\"")
                 .contains("\"name\": \"io.github.lobofoltran.outbox.table-name\"")
                 .contains("\"name\": \"io.github.lobofoltran.outbox.metrics.enabled\"")
+                .contains("\"name\": \"io.github.lobofoltran.outbox.metrics.tag-fallback\"")
+                .contains("\"name\": \"io.github.lobofoltran.outbox.metrics.event-type-allowlist\"")
                 .contains("\"name\": \"io.github.lobofoltran.outbox.tracing.enabled\"")
                 .contains("\"name\": \"io.github.lobofoltran.outbox.health.enabled\"");
     }

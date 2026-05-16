@@ -100,6 +100,7 @@ public final class JdbcOutbox implements Outbox {
 
             try (OutboxInsert insert = resolved.prepareInsert(connection, table)) {
                 for (OutboxEvent event : batch) {
+                    resolved.validate(event);
                     UUID id = event.id() != null ? event.id() : idGenerator.generate(clock);
                     insert.bind(event, id);
                     insert.addBatch();

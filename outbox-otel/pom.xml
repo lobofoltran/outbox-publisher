@@ -14,7 +14,6 @@
     <description>OpenTelemetry tracing decorator that wraps every publish in a span using messaging.* semantic conventions.</description>
 
     <properties>
-        <!-- Thin decorator; matches outbox-micrometer's elevated thresholds (ADR-0014). -->
         <coverage.line.minimum>0.95</coverage.line.minimum>
         <coverage.branch.minimum>0.95</coverage.branch.minimum>
     </properties>
@@ -24,7 +23,6 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>outbox-core</artifactId>
         </dependency>
-        <!-- OTel API is provided so consumers bring their own version (ADR-0014). -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api</artifactId>
