@@ -66,6 +66,26 @@
             <optional>true</optional>
         </dependency>
         <dependency>
+            <!-- Needed at compile time so OutboxOpenTelemetrySdkAutoConfiguration can reference
+                 AutoConfiguredOpenTelemetrySdk. Optional because adopters who wire OpenTelemetry
+                 through the Java Agent or opentelemetry-spring-boot-starter must NOT pull this
+                 transitively; the autoconfig stays inert when the class is absent. -->
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk-extension-autoconfigure</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <!-- The autoconfigure extension transitively pulls opentelemetry-sdk at compile scope,
+                 but we re-declare opentelemetry-sdk at test scope below for the IT — Maven's
+                 nearest-declaration rule then demotes the autoconfigure transitive to test scope
+                 too and the bridge autoconfig fails to compile. Re-declare opentelemetry-sdk here
+                 as optional/compile so getOpenTelemetrySdk() resolves; downstream consumers still
+                 inherit it only if they bring the autoconfigure extension themselves. -->
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>outbox-otel</artifactId>
             <optional>true</optional>
@@ -88,11 +108,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-sdk</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
+            <!-- opentelemetry-sdk is already present at optional/compile scope above so the
+                 SDK-bridge autoconfig can compile; no separate test declaration is needed. -->
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk-testing</artifactId>
             <scope>test</scope>
