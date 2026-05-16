@@ -3,42 +3,63 @@ name: javadoc
 # Publishes the aggregated Javadoc site to GitHub Pages after every tagged
 # release. Runs only when the `release` workflow for the same tag finishes
 # successfully, so a failed deploy can never overwrite Pages with stale docs.
+#
+# Also exposes a manual `workflow_dispatch` trigger so a maintainer can
+# re-publish the Javadoc for any existing tag without cutting a new release
+# (e.g. after fixing a docs-only issue, or backfilling Pages after a CI fix).
 on:
   workflow_run:
     workflows: ["release"]
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish Javadoc from (e.g. v0.4.0). Must already exist.'
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 jobs:
   publish:
-    # Run only when the upstream release workflow succeeded on a tag push.
-    # `release.yml` itself is restricted to `tags: v*.*.*`, so a successful
-    # workflow_run for it already implies a matching tag. We deliberately do
-    # NOT inspect `workflow_run.head_branch` here: for tag-triggered runs the
-    # GitHub API populates it with the branch the tagged commit lives on
-    # (typically `main`) or with `null`, never with the tag name — which is
-    # why a previous `startsWith(head_branch, 'v')` guard always skipped.
+    # For `workflow_run`: only run when the upstream release succeeded on a tag
+    # push. `release.yml` itself is restricted to `tags: v*.*.*`, so a
+    # successful workflow_run for it already implies a matching tag. We
+    # deliberately do NOT inspect `workflow_run.head_branch` here: for
+    # tag-triggered runs the GitHub API populates it with the branch the
+    # tagged commit lives on (typically `main`) or with `null`, never with
+    # the tag name — which is why a previous `startsWith(head_branch, 'v')`
+    # guard always skipped.
+    #
+    # For `workflow_dispatch`: always run; the maintainer is explicitly
+    # asking for a republish of a chosen tag.
     if: >-
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.conclusion == 'success'
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout tag
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          # workflow_dispatch supplies the tag name directly; workflow_run
+          # only exposes the head SHA of the upstream run.
+          ref: ${{ github.event.inputs.tag || github.event.workflow_run.head_sha }}
           # Need full history + tags so we can resolve the tag name from the SHA.
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Resolve tag name from head_sha
+      - name: Resolve tag name
         id: tag
         run: |
-          tag="$(git describe --tags --exact-match "${{ github.event.workflow_run.head_sha }}")"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ github.event.inputs.tag }}"
+          else
+            tag="$(git describe --tags --exact-match "${{ github.event.workflow_run.head_sha }}")"
+          fi
           echo "name=${tag}" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 25
