@@ -32,6 +32,8 @@ import io.github.lobofoltran.outbox.jdbc.IdGenerator;
  * }</pre>
  *
  * Instances are thread-safe.
+ *
+ * @since 0.1.0
  */
 public final class UuidV7Generator implements IdGenerator {
 

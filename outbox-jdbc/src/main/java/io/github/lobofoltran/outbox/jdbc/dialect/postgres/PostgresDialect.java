@@ -38,6 +38,8 @@ import io.github.lobofoltran.outbox.jdbc.spi.TableRef;
  * <p>This class is in an internal package and is <em>not</em> exported by the {@code outbox-jdbc}
  * module. Applications must only depend on the {@link OutboxDialect}/{@code OutboxDialectProvider}
  * SPI.
+ *
+ * @since 0.1.0
  */
 public final class PostgresDialect implements OutboxDialect {
 

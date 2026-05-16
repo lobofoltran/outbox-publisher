@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
  *
  * @param schema optional schema qualifier; may be {@code null}.
  * @param tableName required, validated against the identifier pattern.
- * @since 0.2.0
+ * @since 0.1.0
  */
 public record TableRef(String schema, String tableName) {
 
@@ -36,7 +36,7 @@ public record TableRef(String schema, String tableName) {
      * Returns the qualified table reference: {@code schema.tableName} or just {@code tableName}.
      *
      * @return the qualified table reference.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public String qualified() {
         return schema != null ? schema + "." + tableName : tableName;

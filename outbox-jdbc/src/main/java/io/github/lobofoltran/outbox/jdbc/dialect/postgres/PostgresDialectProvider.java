@@ -18,6 +18,8 @@ import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialectProvider;
  * PostgreSQL, Aurora PostgreSQL, Yugabyte (reports as {@code "PostgreSQL"}) and similar
  * wire-compatible derivatives. Priority is {@code 0} so that any third-party provider can override
  * us by returning a higher value.
+ *
+ * @since 0.1.0
  */
 public final class PostgresDialectProvider implements OutboxDialectProvider {
 

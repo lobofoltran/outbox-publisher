@@ -19,7 +19,7 @@ import java.sql.SQLException;
  * Built-in providers use priority {@code 0}; third-party providers may use larger values to take
  * precedence.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public interface OutboxDialectProvider {
 

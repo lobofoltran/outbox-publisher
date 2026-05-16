@@ -18,7 +18,7 @@ import java.io.Serial;
  * <p>Dialects classify SQLState class {@code 23} (integrity constraint violation) — in particular
  * {@code 23505} (unique violation) on PostgreSQL — as integrity failures.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public final class OutboxIntegrityException extends OutboxException {
 
@@ -28,7 +28,7 @@ public final class OutboxIntegrityException extends OutboxException {
      * Creates a new {@code OutboxIntegrityException} with the given message.
      *
      * @param message human-readable description of the failure.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public OutboxIntegrityException(String message) {
         super(message);
@@ -39,7 +39,7 @@ public final class OutboxIntegrityException extends OutboxException {
      *
      * @param message human-readable description of the failure.
      * @param cause the underlying cause.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public OutboxIntegrityException(String message, Throwable cause) {
         super(message, cause);
