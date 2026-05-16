@@ -38,3 +38,33 @@ jobs:
           path: '**/target/site/jacoco/**'
           if-no-files-found: ignore
           retention-days: 7
+
+  # S5.a — BOM smoke gate. Installs every reactor module to the local repo,
+  # then exercises outbox-bom's consumer IT (maven-invoker-plugin) which
+  # imports the BOM and resolves all published modules without a <version>.
+  bom-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Install reactor to local repo
+        run: ./mvnw -B -ntp -DskipTests install
+
+      - name: BOM consumer smoke test
+        run: ./mvnw -B -ntp -Pbom-smoke-test -pl outbox-bom -am verify
+
+  # S5.b — TODO (depends on Agent 17 landing examples/):
+  # Once `examples/` exists, add an `examples-ci` job here that runs
+  # `./mvnw -f examples/<each>/pom.xml -B -ntp verify` against a Testcontainers
+  # PostgreSQL 16 service. Tracked as a follow-up issue linked from the PR
+  # description that introduces this file.
