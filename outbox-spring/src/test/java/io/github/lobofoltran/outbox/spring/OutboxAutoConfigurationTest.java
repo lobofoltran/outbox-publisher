@@ -122,12 +122,32 @@ class OutboxAutoConfigurationTest {
     @Test
     @DisplayName("wraps the Outbox bean with MeteredOutbox when a MeterRegistry is present")
     void wraps_with_metered_outbox_when_micrometer_is_available() {
-        runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        runner.withBean(MeterRegistry.class, () -> registry)
+                .withUserConfiguration(UserOutboxConfig.class)
                 .run(
                         context -> {
                             assertThat(context).hasSingleBean(Outbox.class);
-                            assertThat(context.getBean(Outbox.class))
-                                    .isInstanceOf(MeteredOutbox.class);
+                            Outbox bean = context.getBean(Outbox.class);
+                            assertThat(bean).isInstanceOf(MeteredOutbox.class);
+                            // Exercise the default (empty allowlist) pass-through predicate so
+                            // the underlying always-true lambda is actually invoked at publish
+                            // time, not merely wired in at bean creation.
+                            bean.publish(
+                                    OutboxEvent.builder()
+                                            .aggregateType("Order")
+                                            .aggregateId("agg-1")
+                                            .eventType("OrderPlaced")
+                                            .contentType("application/json")
+                                            .payload(new byte[] {1})
+                                            .occurredAt(Instant.parse("2026-03-10T08:30:00Z"))
+                                            .build());
+                            assertThat(
+                                            registry.find("outbox.publish")
+                                                    .tag("event_type", "OrderPlaced")
+                                                    .timer()
+                                                    .count())
+                                    .isEqualTo(1);
                         });
     }
 
@@ -151,6 +171,73 @@ class OutboxAutoConfigurationTest {
                             assertThat(context).hasSingleBean(Outbox.class);
                             assertThat(context.getBean(Outbox.class))
                                     .isNotInstanceOf(MeteredOutbox.class);
+                        });
+    }
+
+    @Test
+    @DisplayName(
+            "metrics cardinality cap: event-type-allowlist collapses non-listed values into the"
+                    + " configured fallback tag string")
+    void metrics_cardinality_cap_collapses_disallowed_event_types() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        runner.withBean(MeterRegistry.class, () -> registry)
+                .withPropertyValues(
+                        "io.github.lobofoltran.outbox.metrics.tag-fallback=BUCKET",
+                        "io.github.lobofoltran.outbox.metrics.event-type-allowlist[0]=OrderPlaced")
+                .withUserConfiguration(UserOutboxConfig.class)
+                .run(
+                        context -> {
+                            Outbox bean = context.getBean(Outbox.class);
+                            assertThat(bean).isInstanceOf(MeteredOutbox.class);
+
+                            bean.publish(
+                                    OutboxEvent.builder()
+                                            .aggregateType("Order")
+                                            .aggregateId("agg-1")
+                                            .eventType("user-derived-1")
+                                            .contentType("application/json")
+                                            .payload(new byte[] {1})
+                                            .occurredAt(Instant.parse("2026-03-10T08:30:00Z"))
+                                            .build());
+                            bean.publish(
+                                    OutboxEvent.builder()
+                                            .aggregateType("Order")
+                                            .aggregateId("agg-1")
+                                            .eventType("user-derived-2")
+                                            .contentType("application/json")
+                                            .payload(new byte[] {1})
+                                            .occurredAt(Instant.parse("2026-03-10T08:30:00Z"))
+                                            .build());
+                            // Allowed event_type — passes through.
+                            bean.publish(
+                                    OutboxEvent.builder()
+                                            .aggregateType("Order")
+                                            .aggregateId("agg-1")
+                                            .eventType("OrderPlaced")
+                                            .contentType("application/json")
+                                            .payload(new byte[] {1})
+                                            .occurredAt(Instant.parse("2026-03-10T08:30:00Z"))
+                                            .build());
+
+                            // The two disallowed values collapsed into the BUCKET fallback timer.
+                            assertThat(
+                                            registry.find("outbox.publish")
+                                                    .tag("event_type", "BUCKET")
+                                                    .timer()
+                                                    .count())
+                                    .isEqualTo(2);
+                            // The allowed value has its own dedicated series.
+                            assertThat(
+                                            registry.find("outbox.publish")
+                                                    .tag("event_type", "OrderPlaced")
+                                                    .timer()
+                                                    .count())
+                                    .isEqualTo(1);
+                            assertThat(
+                                            registry.find("outbox.publish")
+                                                    .tag("event_type", "user-derived-1")
+                                                    .timer())
+                                    .isNull();
                         });
     }
 

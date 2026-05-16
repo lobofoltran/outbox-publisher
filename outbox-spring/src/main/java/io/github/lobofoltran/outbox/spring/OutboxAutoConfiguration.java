@@ -5,6 +5,9 @@
  */
 package io.github.lobofoltran.outbox.spring;
 
+import java.util.List;
+import java.util.Set;
+import java.util.function.BiPredicate;
 import javax.sql.DataSource;
 
 import io.github.lobofoltran.outbox.Outbox;
@@ -143,8 +146,9 @@ public class OutboxAutoConfiguration {
         // i.e. the wrong way round).
         @Bean
         static MetricsBeanPostProcessor outboxMetricsBeanPostProcessor(
-                ObjectProvider<MeterRegistry> registryProvider) {
-            return new MetricsBeanPostProcessor(registryProvider);
+                ObjectProvider<MeterRegistry> registryProvider,
+                ObjectProvider<OutboxProperties> propertiesProvider) {
+            return new MetricsBeanPostProcessor(registryProvider, propertiesProvider);
         }
 
         /**
@@ -162,15 +166,24 @@ public class OutboxAutoConfiguration {
         static final class MetricsBeanPostProcessor implements BeanPostProcessor, Ordered {
 
             private final ObjectProvider<MeterRegistry> registryProvider;
+            private final ObjectProvider<OutboxProperties> propertiesProvider;
 
-            MetricsBeanPostProcessor(ObjectProvider<MeterRegistry> registryProvider) {
+            MetricsBeanPostProcessor(
+                    ObjectProvider<MeterRegistry> registryProvider,
+                    ObjectProvider<OutboxProperties> propertiesProvider) {
                 this.registryProvider = registryProvider;
+                this.propertiesProvider = propertiesProvider;
             }
 
             @Override
             public Object postProcessAfterInitialization(Object bean, String name) {
                 if (bean instanceof Outbox outbox && !(bean instanceof MeteredOutbox)) {
-                    return new MeteredOutbox(outbox, registryProvider.getObject());
+                    OutboxProperties.Metrics metrics = propertiesProvider.getObject().metrics();
+                    return new MeteredOutbox(
+                            outbox,
+                            registryProvider.getObject(),
+                            buildPredicate(metrics.eventTypeAllowlist()),
+                            metrics.tagFallback());
                 }
                 return bean;
             }
@@ -178,6 +191,22 @@ public class OutboxAutoConfiguration {
             @Override
             public int getOrder() {
                 return Ordered.LOWEST_PRECEDENCE - 200;
+            }
+
+            /**
+             * Builds the {@code (tagName, value) -> keep?} predicate from properties. An empty
+             * allowlist keeps the v0.1 pass-through default; a non-empty allowlist filters the
+             * {@code event_type} tag and ignores other tag names.
+             */
+            private static BiPredicate<String, String> buildPredicate(List<String> allowlist) {
+                // The Spring binder materializes an empty list when the property is absent
+                // (@DefaultValue on a List), so null is not a configuration we have to defend
+                // against here.
+                if (allowlist.isEmpty()) {
+                    return (tag, value) -> true;
+                }
+                Set<String> allowed = Set.copyOf(allowlist);
+                return (tag, value) -> !"event_type".equals(tag) || allowed.contains(value);
             }
         }
     }

@@ -6,12 +6,15 @@
 package io.github.lobofoltran.outbox.micrometer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.function.BiPredicate;
 
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
@@ -231,6 +234,101 @@ class MeteredOutboxTest {
         assertThatNullPointerException()
                 .isThrownBy(() -> metered.publishAll(null))
                 .withMessageContaining("events");
+    }
+
+    @Test
+    void default_constructor_passes_all_tag_values_through() {
+        metered.publish(event("UserInput-Order", "evt-customer-derived", new byte[] {1}));
+        Timer timer = findTimer("UserInput-Order", "evt-customer-derived", "success");
+        assertThat(timer.count()).isEqualTo(1);
+    }
+
+    @Test
+    void allowlist_predicate_lets_known_event_types_through() {
+        BiPredicate<String, String> allowlist =
+                (tag, value) ->
+                        !MeteredOutbox.TAG_EVENT_TYPE.equals(tag)
+                                || Set.of("OrderPlaced", "OrderCancelled").contains(value);
+        MeteredOutbox capped = new MeteredOutbox(delegate, registry, allowlist, "other");
+
+        capped.publish(event("Order", "OrderPlaced", new byte[] {1}));
+
+        Timer timer = findTimer("Order", "OrderPlaced", "success");
+        assertThat(timer.count()).isEqualTo(1);
+    }
+
+    @Test
+    void rejected_tag_values_collapse_into_fallback() {
+        BiPredicate<String, String> allowlist =
+                (tag, value) ->
+                        !MeteredOutbox.TAG_EVENT_TYPE.equals(tag)
+                                || Set.of("OrderPlaced").contains(value);
+        MeteredOutbox capped = new MeteredOutbox(delegate, registry, allowlist, "other");
+
+        // Two distinct user-derived event_types should collapse into a single "other" series.
+        capped.publish(event("Order", "userInput1", new byte[] {1}));
+        capped.publish(event("Order", "userInput2", new byte[] {1}));
+
+        Timer fallbackTimer = findTimer("Order", "other", "success");
+        assertThat(fallbackTimer.count()).isEqualTo(2);
+
+        Timer leakedTimer1 =
+                registry.find(MeteredOutbox.PUBLISH_TIMER)
+                        .tags(Tags.of("aggregate_type", "Order", "event_type", "userInput1"))
+                        .timer();
+        Timer leakedTimer2 =
+                registry.find(MeteredOutbox.PUBLISH_TIMER)
+                        .tags(Tags.of("aggregate_type", "Order", "event_type", "userInput2"))
+                        .timer();
+        assertThat(leakedTimer1).isNull();
+        assertThat(leakedTimer2).isNull();
+    }
+
+    @Test
+    void fallback_string_is_configurable() {
+        BiPredicate<String, String> rejectAll = (tag, value) -> false;
+        MeteredOutbox capped = new MeteredOutbox(delegate, registry, rejectAll, "BUCKET");
+
+        capped.publish(event("Order", "OrderPlaced", new byte[] {1}));
+
+        Timer timer = findTimer("BUCKET", "BUCKET", "success");
+        assertThat(timer.count()).isEqualTo(1);
+    }
+
+    @Test
+    void predicate_sees_tag_name_for_per_tag_decisions() {
+        // Reject only aggregate_type values not in the allowlist; pass event_type through.
+        BiPredicate<String, String> perTag =
+                (tag, value) ->
+                        !MeteredOutbox.TAG_AGGREGATE_TYPE.equals(tag)
+                                || Set.of("Order").contains(value);
+        MeteredOutbox capped = new MeteredOutbox(delegate, registry, perTag, "other");
+
+        capped.publish(event("UnknownAgg", "OrderPlaced", new byte[] {1}));
+
+        Timer timer = findTimer("other", "OrderPlaced", "success");
+        assertThat(timer.count()).isEqualTo(1);
+    }
+
+    @Test
+    void rejects_null_predicate() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> new MeteredOutbox(delegate, registry, null, "other"))
+                .withMessageContaining("tagValuePredicate");
+    }
+
+    @Test
+    void rejects_null_fallback() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> new MeteredOutbox(delegate, registry, (n, v) -> true, null))
+                .withMessageContaining("tagFallback");
+    }
+
+    @Test
+    void rejects_blank_fallback() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new MeteredOutbox(delegate, registry, (n, v) -> true, "  "))
+                .withMessageContaining("tagFallback");
     }
 
     @Test
