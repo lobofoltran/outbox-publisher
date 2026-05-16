@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/). Releases are managed automatically by [release-please](https://github.com/googleapis/release-please).
 
+## [0.5.0](https://github.com/lobofoltran/outbox-publisher/compare/v0.4.3...v0.5.0) (2026-05-16)
+
+
+### Features
+
+* **outbox-spring:** bridge Spring Environment into OpenTelemetry SDK autoconfigure (DEBT-12) ([#82](https://github.com/lobofoltran/outbox-publisher/issues/82)) ([2e858e5](https://github.com/lobofoltran/outbox-publisher/commit/2e858e5428842002f2038aa3cbeda152101d51a7))
+
 ## [0.4.3](https://github.com/lobofoltran/outbox-publisher/compare/v0.4.2...v0.4.3) (2026-05-16)
 
 
