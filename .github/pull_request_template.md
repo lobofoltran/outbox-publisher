@@ -37,7 +37,10 @@ Implements: `docs/adr/XXXX-name.md`
 ## Checklist
 
 - [ ] Conventional Commit subject (`type(scope): subject`)
-- [ ] All commits GPG-signed
+- [ ] All commits GPG-signed (`git log --format='%h %G?' main..HEAD` shows `G` everywhere)
+- [ ] **AI-assisted commits carry the `Co-Authored-By: Devin` trailer** (amend + force-push the feature branch if missing — never force-push `main`)
+- [ ] Build runs under Java 25 (`sdk use java 25.0.2-zulu` before `./mvnw`)
+- [ ] Spotless applied before commit (`./mvnw -B -ntp -Pquality spotless:apply` then review diff)
 - [ ] Coverage gates honored (`./mvnw -B -ntp -Pquality verify`)
 - [ ] No `var` in production code, no JUnit 4 imports, no reflection in tests
 - [ ] Documentation updated (`README.md` / `AGENTS.md` / `ROADMAP.md` as applicable)
