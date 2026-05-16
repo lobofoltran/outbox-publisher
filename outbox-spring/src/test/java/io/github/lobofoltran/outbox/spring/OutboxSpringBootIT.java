@@ -47,14 +47,19 @@ class OutboxSpringBootIT {
     @BeforeEach
     void recreateTable() throws SQLException, IOException {
         try (Connection connection = dataSource.getConnection();
-                Statement statement = connection.createStatement();
-                InputStream ddlStream =
-                        OutboxSpringBootIT.class.getResourceAsStream("/sql/postgres/outbox.sql")) {
+                Statement statement = connection.createStatement()) {
             statement.execute("DROP TABLE IF EXISTS outbox");
-            if (ddlStream == null) {
-                throw new IllegalStateException("/sql/postgres/outbox.sql not on the classpath");
+            statement.execute(loadResource("/sql/postgres/outbox-publisher.sql"));
+            statement.execute(loadResource("/sql/postgres/outbox-relay-extension.sql"));
+        }
+    }
+
+    private static String loadResource(String resource) throws IOException {
+        try (InputStream in = OutboxSpringBootIT.class.getResourceAsStream(resource)) {
+            if (in == null) {
+                throw new IllegalStateException(resource + " not on the classpath");
             }
-            statement.execute(new String(ddlStream.readAllBytes(), StandardCharsets.UTF_8));
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 
