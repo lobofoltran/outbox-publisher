@@ -29,6 +29,9 @@ import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration;
+import org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration;
+import org.springframework.boot.micrometer.metrics.autoconfigure.export.simple.SimpleMetricsExportAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -267,6 +270,37 @@ class OutboxAutoConfigurationTest {
                             assertThat(context).hasSingleBean(Outbox.class);
                             assertThat(context.getBean(Outbox.class))
                                     .isNotInstanceOf(MeteredOutbox.class);
+                        });
+    }
+
+    @Test
+    @DisplayName(
+            "regression for DEBT-02: wraps with MeteredOutbox when the MeterRegistry is contributed"
+                    + " by a *real* autoconfig (not pre-registered as a plain bean)")
+    void wraps_when_meter_registry_comes_from_real_autoconfig() {
+        // Reproduces the production failure mode: in 0.2.0 + Spring Boot 4 the Micrometer
+        // autoconfigs (relocated to o.s.b.micrometer.metrics.autoconfigure.*) registered the
+        // MeterRegistry *after* OutboxAutoConfiguration was considered, so
+        // @ConditionalOnBean(MeterRegistry.class) evaluated false and the MetricsConfiguration was
+        // silently skipped. Pre-registering the MeterRegistry via withBean(...) — as the older
+        // tests do — masked the bug because the bean already existed before any autoconfig ran.
+        //
+        // Here we let the real Micrometer autoconfigs contribute the MeterRegistry, which only
+        // works if OutboxAutoConfiguration declares an `afterName` relationship to them.
+        new ApplicationContextRunner()
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                MetricsAutoConfiguration.class,
+                                CompositeMeterRegistryAutoConfiguration.class,
+                                SimpleMetricsExportAutoConfiguration.class,
+                                OutboxAutoConfiguration.class))
+                .withBean(DataSource.class, () -> mock(DataSource.class))
+                .run(
+                        context -> {
+                            assertThat(context).hasSingleBean(MeterRegistry.class);
+                            assertThat(context).hasSingleBean(Outbox.class);
+                            assertThat(context.getBean(Outbox.class))
+                                    .isInstanceOf(MeteredOutbox.class);
                         });
     }
 

@@ -78,6 +78,25 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
  * <p>Both decorators are opt-out via the nested {@link OutboxProperties.Metrics metrics.enabled}
  * and {@link OutboxProperties.Tracing tracing.enabled} switches.
  *
+ * <h2>Autoconfig ordering</h2>
+ *
+ * <p>The nested {@code MetricsConfiguration} and {@code TracingConfiguration} use
+ * {@code @ConditionalOnBean(MeterRegistry.class)} and
+ * {@code @ConditionalOnBean(OpenTelemetry.class)} respectively. Those beans are contributed by
+ * other autoconfigurations (Micrometer's {@code MetricsAutoConfiguration} / {@code
+ * SimpleMetricsExportAutoConfiguration} / {@code PrometheusMetricsExportAutoConfiguration}, and
+ * OpenTelemetry's {@code OpenTelemetryAutoConfiguration}). Spring Boot evaluates
+ * {@code @ConditionalOnBean} <em>once</em>, at the time the enclosing autoconfig is considered — so
+ * we must declare an explicit "after" relationship to ensure those bean-producing autoconfigs have
+ * already run when our nested configurations are evaluated. Otherwise the decorators silently fail
+ * to register and {@code /actuator/beans} shows only the bare {@link JdbcOutbox}.
+ *
+ * <p>The autoconfig FQNs are referenced via {@code afterName} (string form) rather than {@code
+ * after} (class literal) because {@code outbox-spring} must not compile-depend on the optional
+ * Micrometer / OpenTelemetry autoconfig modules. {@code afterName} silently no-ops when a
+ * referenced class is absent from the classpath, which is the exact semantic required for these
+ * optional relationships.
+ *
  * <h2>Health</h2>
  *
  * <p>If Spring Boot Actuator is on the classpath an {@link OutboxHealthIndicator} is registered
@@ -86,7 +105,17 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
  *
  * @since 0.1.0
  */
-@AutoConfiguration(after = DataSourceAutoConfiguration.class)
+@AutoConfiguration(
+        after = DataSourceAutoConfiguration.class,
+        afterName = {
+            // Spring Boot 4 relocated the Micrometer autoconfigs to this package.
+            "org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration",
+            "org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration",
+            "org.springframework.boot.micrometer.metrics.autoconfigure.export.simple.SimpleMetricsExportAutoConfiguration",
+            "org.springframework.boot.micrometer.metrics.autoconfigure.export.prometheus.PrometheusMetricsExportAutoConfiguration",
+            // OpenTelemetry's Spring Boot starter contributes the OpenTelemetry bean.
+            "io.opentelemetry.instrumentation.spring.autoconfigure.OpenTelemetryAutoConfiguration"
+        })
 @ConditionalOnClass({Outbox.class, JdbcOutbox.class})
 @ConditionalOnSingleCandidate(DataSource.class)
 @ConditionalOnProperty(
