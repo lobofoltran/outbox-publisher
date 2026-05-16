@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.micrometer;
 
 import java.util.ArrayList;
@@ -35,6 +40,8 @@ import io.micrometer.core.instrument.Timer;
  *
  * <p>Instances are thread-safe: the {@link MeterRegistry} contract guarantees concurrent meter
  * registration is safe, and the decorator holds no mutable state of its own.
+ *
+ * @since 0.1.0
  */
 public final class MeteredOutbox implements Outbox {
 
@@ -52,6 +59,13 @@ public final class MeteredOutbox implements Outbox {
     private final Outbox delegate;
     private final MeterRegistry registry;
 
+    /**
+     * Creates a new metering decorator around {@code delegate}.
+     *
+     * @param delegate the underlying {@link Outbox}; never {@code null}.
+     * @param registry the {@link MeterRegistry} that receives metrics; never {@code null}.
+     * @since 0.1.0
+     */
     public MeteredOutbox(Outbox delegate, MeterRegistry registry) {
         this.delegate = Objects.requireNonNull(delegate, "delegate must not be null");
         this.registry = Objects.requireNonNull(registry, "registry must not be null");

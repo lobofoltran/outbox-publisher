@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.jdbc;
 
 import java.sql.Connection;
@@ -40,6 +45,8 @@ import org.slf4j.LoggerFactory;
  * transaction manager, the caller's try-with-resources block, etc.).
  *
  * <p>Construct via {@link #builder()}.
+ *
+ * @since 0.1.0
  */
 public final class JdbcOutbox implements Outbox {
 
@@ -62,6 +69,12 @@ public final class JdbcOutbox implements Outbox {
         this.dialect = builder.dialect;
     }
 
+    /**
+     * Creates a fresh {@link Builder}.
+     *
+     * @return a new builder.
+     * @since 0.1.0
+     */
     public static Builder builder() {
         return new Builder();
     }
@@ -178,6 +191,8 @@ public final class JdbcOutbox implements Outbox {
      * Only {@link #connectionSupplier(ConnectionSupplier)} is required.
      *
      * <p>Instances are not thread-safe.
+     *
+     * @since 0.1.0
      */
     public static final class Builder {
 
@@ -190,6 +205,14 @@ public final class JdbcOutbox implements Outbox {
 
         private Builder() {}
 
+        /**
+         * Sets the {@link ConnectionSupplier} that provides the JDBC connection used by every
+         * publish.
+         *
+         * @param newConnectionSupplier the connection supplier; never {@code null}.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder connectionSupplier(ConnectionSupplier newConnectionSupplier) {
             this.connectionSupplier =
                     Objects.requireNonNull(
@@ -197,21 +220,51 @@ public final class JdbcOutbox implements Outbox {
             return this;
         }
 
+        /**
+         * Sets the outbox table name. Defaults to {@code "outbox"}.
+         *
+         * @param newTableName the table name; never {@code null}.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder tableName(String newTableName) {
             this.tableName = Objects.requireNonNull(newTableName, "tableName must not be null");
             return this;
         }
 
+        /**
+         * Sets the schema qualifier for the outbox table. When {@code null} (default) the table is
+         * referenced unqualified.
+         *
+         * @param newSchema the schema, or {@code null}.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder schema(String newSchema) {
             this.schema = newSchema;
             return this;
         }
 
+        /**
+         * Sets the {@link Clock} used by the default id generator. Defaults to {@link
+         * Clock#systemUTC()}.
+         *
+         * @param newClock the clock; never {@code null}.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder clock(Clock newClock) {
             this.clock = Objects.requireNonNull(newClock, "clock must not be null");
             return this;
         }
 
+        /**
+         * Sets the {@link IdGenerator} used to assign UUIDs to events that don't carry one.
+         *
+         * @param newIdGenerator the id generator; never {@code null}.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder idGenerator(IdGenerator newIdGenerator) {
             this.idGenerator =
                     Objects.requireNonNull(newIdGenerator, "idGenerator must not be null");
@@ -221,12 +274,22 @@ public final class JdbcOutbox implements Outbox {
         /**
          * Pins a specific {@link OutboxDialect}, bypassing auto-detection. Use this when running
          * against a database where no provider is registered, or when a test needs a fake dialect.
+         *
+         * @param newDialect the dialect; never {@code null}.
+         * @return this builder.
+         * @since 0.2.0
          */
         public Builder dialect(OutboxDialect newDialect) {
             this.dialect = Objects.requireNonNull(newDialect, "dialect must not be null");
             return this;
         }
 
+        /**
+         * Builds the {@link JdbcOutbox} instance.
+         *
+         * @return the constructed outbox.
+         * @since 0.1.0
+         */
         public JdbcOutbox build() {
             Objects.requireNonNull(connectionSupplier, "connectionSupplier must not be null");
             return new JdbcOutbox(this);

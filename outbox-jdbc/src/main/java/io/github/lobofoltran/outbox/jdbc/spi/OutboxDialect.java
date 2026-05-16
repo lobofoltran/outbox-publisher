@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.jdbc.spi;
 
 import java.sql.PreparedStatement;
@@ -21,6 +26,8 @@ import io.github.lobofoltran.outbox.OutboxException;
  *
  * <p>Implementations must be thread-safe — a single dialect instance is shared across every {@code
  * publish} / {@code publishAll} call on the {@code JdbcOutbox} that resolved it.
+ *
+ * @since 0.2.0
  */
 public interface OutboxDialect {
 

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.jdbc.spi;
 
 import java.util.Objects;
@@ -10,6 +15,10 @@ import java.util.regex.Pattern;
  *
  * <p>The validation pattern is {@code [A-Za-z_][A-Za-z0-9_]*}. Anything else (quotes, dots, spaces,
  * semicolons, …) is rejected — preventing accidental SQL injection through misuse of the builder.
+ *
+ * @param schema optional schema qualifier; may be {@code null}.
+ * @param tableName required, validated against the identifier pattern.
+ * @since 0.2.0
  */
 public record TableRef(String schema, String tableName) {
 
@@ -25,6 +34,9 @@ public record TableRef(String schema, String tableName) {
 
     /**
      * Returns the qualified table reference: {@code schema.tableName} or just {@code tableName}.
+     *
+     * @return the qualified table reference.
+     * @since 0.2.0
      */
     public String qualified() {
         return schema != null ? schema + "." + tableName : tableName;

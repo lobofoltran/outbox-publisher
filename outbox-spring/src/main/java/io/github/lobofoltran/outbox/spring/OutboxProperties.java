@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.spring;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -19,6 +24,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param metrics metrics decorator settings. See {@link Metrics}.
  * @param tracing tracing decorator settings. See {@link Tracing}.
  * @param health health indicator settings. See {@link Health}.
+ * @since 0.1.0
  */
 @ConfigurationProperties(prefix = "io.github.lobofoltran.outbox")
 public record OutboxProperties(
@@ -34,6 +40,7 @@ public record OutboxProperties(
      *
      * @param enabled when {@code false}, the {@code MeteredOutbox} decorator is not applied even if
      *     Micrometer is on the classpath and a {@code MeterRegistry} bean exists.
+     * @since 0.2.0
      */
     public record Metrics(@DefaultValue("true") boolean enabled) {}
 
@@ -42,6 +49,7 @@ public record OutboxProperties(
      *
      * @param enabled when {@code false}, the {@code TracedOutbox} decorator is not applied even if
      *     OpenTelemetry is on the classpath and an {@code OpenTelemetry} bean exists.
+     * @since 0.2.0
      */
     public record Tracing(@DefaultValue("true") boolean enabled) {}
 
@@ -50,6 +58,7 @@ public record OutboxProperties(
      *
      * @param enabled when {@code false}, the {@code OutboxHealthIndicator} is not registered even
      *     if Spring Boot Actuator is on the classpath.
+     * @since 0.2.0
      */
     public record Health(@DefaultValue("true") boolean enabled) {}
 }

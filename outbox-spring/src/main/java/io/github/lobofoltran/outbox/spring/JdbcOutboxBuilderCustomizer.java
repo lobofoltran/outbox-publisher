@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.spring;
 
 import io.github.lobofoltran.outbox.jdbc.JdbcOutbox;
@@ -21,6 +26,8 @@ import io.github.lobofoltran.outbox.jdbc.JdbcOutbox;
  * <p>This is the recommended extension point for adopters who want to tweak the auto-configured
  * {@code JdbcOutbox} without registering their own {@code @Bean Outbox} (which would back off the
  * autoconfig entirely).
+ *
+ * @since 0.2.0
  */
 @FunctionalInterface
 public interface JdbcOutboxBuilderCustomizer {

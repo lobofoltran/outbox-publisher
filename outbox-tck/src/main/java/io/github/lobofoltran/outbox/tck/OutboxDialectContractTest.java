@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox.tck;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,6 +54,8 @@ import org.junit.jupiter.api.Test;
  *
  * <p>The class lives in {@code src/main/java} so it ships in {@code outbox-tck}'s main JAR. See
  * ADR-0016 for the rationale and the full enumeration of contract tests.
+ *
+ * @since 0.2.0
  */
 public abstract class OutboxDialectContractTest {
 

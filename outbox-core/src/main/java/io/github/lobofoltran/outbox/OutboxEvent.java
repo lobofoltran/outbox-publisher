@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox;
 
 import java.time.Instant;
@@ -34,6 +39,7 @@ import java.util.UUID;
  * @param destination optional routing hint (topic / exchange / queue), at most 128 characters when
  *     present.
  * @param occurredAt the domain timestamp; never {@code null}.
+ * @since 0.1.0
  */
 public record OutboxEvent(
         UUID id,
@@ -100,6 +106,9 @@ public record OutboxEvent(
     /**
      * Returns the size in bytes of the payload, without cloning the underlying array. Intended for
      * callers (metrics, logging) that need the size and never the bytes.
+     *
+     * @return the payload length in bytes.
+     * @since 0.2.0
      */
     public int payloadSize() {
         return payload.length;
@@ -111,7 +120,12 @@ public record OutboxEvent(
         return headers;
     }
 
-    /** Creates a fresh {@link Builder}. */
+    /**
+     * Creates a fresh {@link Builder}.
+     *
+     * @return a new, mutable {@link Builder} initialized with no fields set.
+     * @since 0.1.0
+     */
     public static Builder builder() {
         return new Builder();
     }
@@ -143,6 +157,8 @@ public record OutboxEvent(
      * All other fields are required and validated by the record's compact constructor.
      *
      * <p>Instances are not thread-safe.
+     *
+     * @since 0.1.0
      */
     public static final class Builder {
 
@@ -158,37 +174,85 @@ public record OutboxEvent(
 
         private Builder() {}
 
+        /**
+         * Sets the event identifier. When left {@code null} the implementation generates one.
+         *
+         * @param newId the event id, or {@code null} for an auto-generated value.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder id(UUID newId) {
             this.id = newId;
             return this;
         }
 
+        /**
+         * Sets the aggregate type (non-blank, ≤ 128 chars).
+         *
+         * @param newAggregateType the aggregate type.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder aggregateType(String newAggregateType) {
             this.aggregateType = newAggregateType;
             return this;
         }
 
+        /**
+         * Sets the aggregate identifier (non-blank, ≤ 128 chars).
+         *
+         * @param newAggregateId the aggregate id.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder aggregateId(String newAggregateId) {
             this.aggregateId = newAggregateId;
             return this;
         }
 
+        /**
+         * Sets the event type (non-blank, ≤ 128 chars).
+         *
+         * @param newEventType the event type.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder eventType(String newEventType) {
             this.eventType = newEventType;
             return this;
         }
 
+        /**
+         * Sets the content type (non-blank, ≤ 64 chars; e.g. {@code application/json}).
+         *
+         * @param newContentType the content type.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder contentType(String newContentType) {
             this.contentType = newContentType;
             return this;
         }
 
+        /**
+         * Sets the opaque payload bytes. The library never deserializes the bytes.
+         *
+         * @param newPayload the payload bytes.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder payload(byte[] newPayload) {
             this.payload = newPayload;
             return this;
         }
 
-        /** Replaces all previously accumulated headers with a copy of {@code newHeaders}. */
+        /**
+         * Replaces all previously accumulated headers with a copy of {@code newHeaders}.
+         *
+         * @param newHeaders the headers to copy.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder headers(Map<String, String> newHeaders) {
             Objects.requireNonNull(newHeaders, "headers must not be null");
             this.headers.clear();
@@ -196,7 +260,14 @@ public record OutboxEvent(
             return this;
         }
 
-        /** Adds (or overrides) a single header pair. */
+        /**
+         * Adds (or overrides) a single header pair.
+         *
+         * @param key the header key.
+         * @param value the header value.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder header(String key, String value) {
             Objects.requireNonNull(key, "header key must not be null");
             Objects.requireNonNull(value, "header value must not be null");
@@ -204,16 +275,36 @@ public record OutboxEvent(
             return this;
         }
 
+        /**
+         * Sets the optional destination (topic / exchange / queue), ≤ 128 chars when present.
+         *
+         * @param newDestination the destination, or {@code null}.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder destination(String newDestination) {
             this.destination = newDestination;
             return this;
         }
 
+        /**
+         * Sets the domain timestamp. Defaults to {@code Instant.now()} at {@link #build()} time.
+         *
+         * @param newOccurredAt the domain timestamp.
+         * @return this builder.
+         * @since 0.1.0
+         */
         public Builder occurredAt(Instant newOccurredAt) {
             this.occurredAt = newOccurredAt;
             return this;
         }
 
+        /**
+         * Builds the {@link OutboxEvent} and applies defaults for unset optional fields.
+         *
+         * @return the constructed event.
+         * @since 0.1.0
+         */
         public OutboxEvent build() {
             Instant resolvedOccurredAt = occurredAt != null ? occurredAt : Instant.now();
             Map<String, String> snapshot = new LinkedHashMap<>(headers);

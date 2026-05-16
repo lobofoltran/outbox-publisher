@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Gustavo Lobo
+ *
+ * Licensed under the MIT License. See LICENSE in the project root.
+ */
 package io.github.lobofoltran.outbox;
 
 import java.util.Objects;
@@ -19,6 +24,7 @@ import java.util.Objects;
  *
  * @see OutboxEvent
  * @see OutboxException
+ * @since 0.1.0
  */
 public interface Outbox {
 
@@ -31,6 +37,7 @@ public interface Outbox {
      * @param event the event to persist; never {@code null}.
      * @throws NullPointerException if {@code event} is {@code null}.
      * @throws OutboxException if the underlying store rejects the write.
+     * @since 0.1.0
      */
     void publish(OutboxEvent event);
 
@@ -51,6 +58,7 @@ public interface Outbox {
      *     {@code null}.
      * @throws NullPointerException if {@code events} or any element is {@code null}.
      * @throws OutboxException if the underlying store rejects any write.
+     * @since 0.2.0
      */
     default void publishAll(Iterable<OutboxEvent> events) {
         Objects.requireNonNull(events, "events must not be null");

@@ -298,6 +298,9 @@
                             </importOrder>
                             <endWithNewline/>
                             <trimTrailingWhitespace/>
+                            <licenseHeader>
+                                <file>${maven.multiModuleProjectDirectory}/.spotless/license-header-java.txt</file>
+                            </licenseHeader>
                         </java>
                         <pom>
                             <sortPom>
@@ -489,6 +492,28 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-checkstyle-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <inherited>false</inherited>
+                        <executions>
+                            <execution>
+                                <id>check-since</id>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <phase>validate</phase>
+                                <configuration>
+                                    <executable>bash</executable>
+                                    <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+                                    <arguments>
+                                        <argument>config/check-since.sh</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.jacoco</groupId>
