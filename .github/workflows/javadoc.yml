@@ -81,7 +81,11 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: target/site/apidocs
+          # maven-javadoc-plugin 3.x writes aggregated output to
+          # `target/reports/apidocs` (not the pre-3.x `target/site/apidocs`).
+          # Pointing at the wrong path silently succeeds with an empty source
+          # dir and publishes an empty gh-pages branch.
+          publish_dir: target/reports/apidocs
           publish_branch: gh-pages
           keep_files: false
           user_name: 'github-actions[bot]'
