@@ -1,5 +1,7 @@
 package io.github.lobofoltran.outbox.micrometer;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import io.github.lobofoltran.outbox.Outbox;
@@ -10,16 +12,22 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 
 /**
- * Decorator that adds Micrometer instrumentation to every {@link Outbox#publish publish} call
- * without changing the contract of the underlying {@link Outbox}.
+ * Decorator that adds Micrometer instrumentation to every {@link Outbox#publish publish} and {@link
+ * Outbox#publishAll publishAll} call without changing the contract of the underlying {@link
+ * Outbox}.
  *
  * <p>Meters emitted:
  *
  * <ul>
- *   <li>{@code outbox.publish} — a {@link Timer} recording publish latency. Tags: {@code
- *       aggregate_type}, {@code event_type}, {@code result} ({@code success} or {@code failure}).
- *   <li>{@code outbox.publish.bytes} — a {@link DistributionSummary} recording the payload size in
- *       bytes. Tags: {@code aggregate_type}, {@code event_type}.
+ *   <li>{@code outbox.publish} — a {@link Timer} recording publish latency (single-event path).
+ *       Tags: {@code aggregate_type}, {@code event_type}, {@code result} ({@code success} or {@code
+ *       failure}).
+ *   <li>{@code outbox.publish.bytes} — a {@link DistributionSummary} recording per-event payload
+ *       size in bytes. Tags: {@code aggregate_type}, {@code event_type}.
+ *   <li>{@code outbox.publish.batch} — a {@link Timer} recording the latency of one {@code
+ *       publishAll} call across the whole batch. Tag: {@code result} only.
+ *   <li>{@code outbox.publish.batch.size} — a {@link DistributionSummary} recording the number of
+ *       events per {@code publishAll} call. Untagged.
  * </ul>
  *
  * <p>By design, {@code aggregate_id} and {@code destination} are <em>never</em> tagged, to keep
@@ -32,6 +40,8 @@ public final class MeteredOutbox implements Outbox {
 
     static final String PUBLISH_TIMER = "outbox.publish";
     static final String PAYLOAD_SUMMARY = "outbox.publish.bytes";
+    static final String BATCH_TIMER = "outbox.publish.batch";
+    static final String BATCH_SIZE_SUMMARY = "outbox.publish.batch.size";
 
     private static final String TAG_AGGREGATE_TYPE = "aggregate_type";
     private static final String TAG_EVENT_TYPE = "event_type";
@@ -64,12 +74,45 @@ public final class MeteredOutbox implements Outbox {
         }
     }
 
+    @Override
+    public void publishAll(Iterable<OutboxEvent> events) {
+        Objects.requireNonNull(events, "events must not be null");
+        // Materialize once so we can record metrics regardless of the underlying implementation
+        // and so that single-pass iterables work as expected.
+        List<OutboxEvent> batch = new ArrayList<>();
+        for (OutboxEvent event : events) {
+            Objects.requireNonNull(event, "events must not contain null elements");
+            batch.add(event);
+        }
+
+        Timer.Sample sample = Timer.start(registry);
+        boolean success = false;
+        try {
+            delegate.publishAll(batch);
+            success = true;
+        } finally {
+            sample.stop(batchTimer(success ? RESULT_SUCCESS : RESULT_FAILURE));
+            batchSizeSummary().record(batch.size());
+            for (OutboxEvent event : batch) {
+                payloadSummary(event).record(event.payloadSize());
+            }
+        }
+    }
+
     private Timer timer(OutboxEvent event, String result) {
         return Timer.builder(PUBLISH_TIMER)
                 .tag(TAG_AGGREGATE_TYPE, event.aggregateType())
                 .tag(TAG_EVENT_TYPE, event.eventType())
                 .tag(TAG_RESULT, result)
                 .register(registry);
+    }
+
+    private Timer batchTimer(String result) {
+        return Timer.builder(BATCH_TIMER).tag(TAG_RESULT, result).register(registry);
+    }
+
+    private DistributionSummary batchSizeSummary() {
+        return DistributionSummary.builder(BATCH_SIZE_SUMMARY).register(registry);
     }
 
     private DistributionSummary payloadSummary(OutboxEvent event) {

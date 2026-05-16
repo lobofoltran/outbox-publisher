@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
@@ -173,6 +175,67 @@ class MeteredOutboxTest {
                 .withMessageContaining("event");
     }
 
+    @Test
+    void publish_all_delegates_and_records_batch_metrics() {
+        List<OutboxEvent> events =
+                List.of(
+                        event("Order", "OrderPlaced", new byte[] {1, 2}),
+                        event("Order", "OrderPlaced", new byte[] {3, 4, 5}));
+
+        metered.publishAll(events);
+
+        assertThat(delegate.batchCaptured).containsExactlyElementsOf(events);
+
+        Timer batchTimer =
+                registry.find(MeteredOutbox.BATCH_TIMER).tags(Tags.of("result", "success")).timer();
+        assertThat(batchTimer).isNotNull();
+        assertThat(batchTimer.count()).isEqualTo(1);
+
+        DistributionSummary sizeSummary = registry.find(MeteredOutbox.BATCH_SIZE_SUMMARY).summary();
+        assertThat(sizeSummary).isNotNull();
+        assertThat(sizeSummary.count()).isEqualTo(1);
+        assertThat(sizeSummary.totalAmount()).isEqualTo(events.size());
+
+        DistributionSummary payload =
+                registry.find(MeteredOutbox.PAYLOAD_SUMMARY)
+                        .tags(Tags.of("aggregate_type", "Order", "event_type", "OrderPlaced"))
+                        .summary();
+        assertThat(payload.count()).isEqualTo(2);
+        assertThat(payload.totalAmount()).isEqualTo(2 + 3);
+    }
+
+    @Test
+    void publish_all_records_failure_timer_when_delegate_throws() {
+        OutboxException cause = new OutboxException("nope");
+        delegate.failWith = cause;
+
+        assertThatThrownBy(
+                        () ->
+                                metered.publishAll(
+                                        List.of(event("Order", "OrderPlaced", new byte[] {1}))))
+                .isSameAs(cause);
+
+        Timer batchTimer =
+                registry.find(MeteredOutbox.BATCH_TIMER).tags(Tags.of("result", "failure")).timer();
+        assertThat(batchTimer).isNotNull();
+        assertThat(batchTimer.count()).isEqualTo(1);
+    }
+
+    @Test
+    void publish_all_rejects_null_iterable() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> metered.publishAll(null))
+                .withMessageContaining("events");
+    }
+
+    @Test
+    void publish_all_rejects_null_element() {
+        List<OutboxEvent> events = new ArrayList<>();
+        events.add(event("Order", "OrderPlaced", new byte[] {1}));
+        events.add(null);
+        assertThatNullPointerException().isThrownBy(() -> metered.publishAll(events));
+    }
+
     private Timer findTimer(String aggregateType, String eventType, String result) {
         Timer timer =
                 registry.find(MeteredOutbox.PUBLISH_TIMER)
@@ -199,11 +262,22 @@ class MeteredOutboxTest {
 
     private static final class RecordingOutbox implements Outbox {
         private OutboxEvent captured;
+        private final List<OutboxEvent> batchCaptured = new ArrayList<>();
         private RuntimeException failWith;
 
         @Override
         public void publish(OutboxEvent event) {
             captured = event;
+            if (failWith != null) {
+                throw failWith;
+            }
+        }
+
+        @Override
+        public void publishAll(Iterable<OutboxEvent> events) {
+            for (OutboxEvent e : events) {
+                batchCaptured.add(e);
+            }
             if (failWith != null) {
                 throw failWith;
             }

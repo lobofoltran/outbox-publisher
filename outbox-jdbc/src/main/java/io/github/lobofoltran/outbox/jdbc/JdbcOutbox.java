@@ -3,18 +3,22 @@ package io.github.lobofoltran.outbox.jdbc;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 import io.github.lobofoltran.outbox.Outbox;
+import io.github.lobofoltran.outbox.OutboxConfigurationException;
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.OutboxException;
+import io.github.lobofoltran.outbox.jdbc.internal.DialectAutoDetector;
 import io.github.lobofoltran.outbox.jdbc.internal.HeadersJsonWriter;
 import io.github.lobofoltran.outbox.jdbc.internal.UuidV7Generator;
+import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialect;
+import io.github.lobofoltran.outbox.jdbc.spi.TableRef;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,9 +27,16 @@ import org.slf4j.LoggerFactory;
  * JDBC implementation of {@link Outbox}. Writes one row per {@link OutboxEvent} to the configured
  * outbox table within the caller's active transaction.
  *
- * <p>The class is thread-safe; the precomputed SQL is immutable and every {@link #publish publish}
- * call uses a fresh {@link PreparedStatement} obtained from a caller-supplied {@link Connection}.
- * {@code JdbcOutbox} never closes the connection: that is the caller's responsibility (Spring's
+ * <p>{@code JdbcOutbox} is database-agnostic: every database-specific decision (idempotency clause,
+ * JSON column binding, timestamp binding, SQLState classification) is delegated to an {@link
+ * OutboxDialect}. The dialect is either supplied explicitly via {@link
+ * Builder#dialect(OutboxDialect)} or auto-detected on first publish through {@link
+ * OutboxDialectProvider} (registered via {@link ServiceLoader}).
+ *
+ * <p>The class is thread-safe; the dialect is resolved lazily under a double-checked volatile field
+ * so the hot path stays lock-free after the first publish. Every publish/publishAll call uses a
+ * fresh {@link PreparedStatement} obtained from a caller-supplied {@link Connection}. {@code
+ * JdbcOutbox} never closes the connection: that is the caller's responsibility (Spring's
  * transaction manager, the caller's try-with-resources block, etc.).
  *
  * <p>Construct via {@link #builder()}.
@@ -34,18 +45,21 @@ public final class JdbcOutbox implements Outbox {
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcOutbox.class);
 
-    private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
-
     private final ConnectionSupplier connectionSupplier;
     private final Clock clock;
     private final IdGenerator idGenerator;
-    private final String insertSql;
+    private final TableRef table;
+    private final DialectAutoDetector autoDetector;
+
+    private volatile OutboxDialect dialect;
 
     private JdbcOutbox(Builder builder) {
         this.connectionSupplier = builder.connectionSupplier;
         this.clock = builder.clock;
         this.idGenerator = builder.idGenerator;
-        this.insertSql = buildInsertSql(builder.schema, builder.tableName);
+        this.table = new TableRef(builder.schema, builder.tableName);
+        this.autoDetector = DialectAutoDetector.usingServiceLoader();
+        this.dialect = builder.dialect;
     }
 
     public static Builder builder() {
@@ -55,45 +69,97 @@ public final class JdbcOutbox implements Outbox {
     @Override
     public void publish(OutboxEvent event) {
         Objects.requireNonNull(event, "event must not be null");
-        UUID id = event.id() != null ? event.id() : idGenerator.generate(clock);
-        String headers = HeadersJsonWriter.toJson(event.headers());
+        publishAll(List.of(event));
+    }
+
+    @Override
+    public void publishAll(Iterable<OutboxEvent> events) {
+        Objects.requireNonNull(events, "events must not be null");
+        List<OutboxEvent> batch = materialize(events);
+        if (batch.isEmpty()) {
+            return;
+        }
 
         try {
             Connection connection = connectionSupplier.get();
-            try (PreparedStatement statement = connection.prepareStatement(insertSql)) {
-                statement.setObject(1, id);
-                statement.setString(2, event.aggregateType());
-                statement.setString(3, event.aggregateId());
-                statement.setString(4, event.eventType());
-                statement.setBytes(5, event.payload());
-                statement.setString(6, event.contentType());
-                statement.setString(7, headers);
-                if (event.destination() != null) {
-                    statement.setString(8, event.destination());
-                } else {
-                    statement.setNull(8, Types.VARCHAR);
+            requireManualTransaction(connection);
+            OutboxDialect resolved = resolveDialect(connection);
+            String sql = resolved.insertSql(table);
+
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                for (OutboxEvent event : batch) {
+                    UUID id = event.id() != null ? event.id() : idGenerator.generate(clock);
+                    String headersJson = HeadersJsonWriter.toJson(event.headers());
+                    resolved.bindId(statement, 1, id);
+                    statement.setString(2, event.aggregateType());
+                    statement.setString(3, event.aggregateId());
+                    statement.setString(4, event.eventType());
+                    statement.setBytes(5, event.payload());
+                    statement.setString(6, event.contentType());
+                    resolved.bindHeaders(statement, 7, headersJson);
+                    resolved.bindOptionalString(statement, 8, event.destination());
+                    resolved.bindTimestamp(statement, 9, event.occurredAt());
+                    statement.addBatch();
                 }
-                statement.setTimestamp(9, Timestamp.from(event.occurredAt()));
-                statement.executeUpdate();
+                statement.executeBatch();
             }
-            LOG.debug(
-                    "Persisted outbox event id={} aggregateType={} eventType={}",
-                    id,
-                    event.aggregateType(),
-                    event.eventType());
+            LOG.debug("Persisted {} outbox event(s) in one batch", batch.size());
         } catch (SQLException ex) {
-            throw new OutboxException("failed to insert outbox event id=" + id, ex);
+            throw translate(ex, "failed to insert " + batch.size() + " outbox event(s)");
         }
     }
 
-    private static String buildInsertSql(String schema, String tableName) {
-        String qualified = schema != null ? schema + "." + tableName : tableName;
-        return "INSERT INTO "
-                + qualified
-                + " ("
-                + "id, aggregate_type, aggregate_id, event_type, payload, "
-                + "content_type, headers, destination, occurred_at"
-                + ") VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)";
+    private static List<OutboxEvent> materialize(Iterable<OutboxEvent> events) {
+        if (events instanceof List<OutboxEvent> list) {
+            for (OutboxEvent e : list) {
+                Objects.requireNonNull(e, "events must not contain null elements");
+            }
+            return list;
+        }
+        List<OutboxEvent> copy = new ArrayList<>();
+        Iterator<OutboxEvent> it = events.iterator();
+        while (it.hasNext()) {
+            OutboxEvent next = it.next();
+            Objects.requireNonNull(next, "events must not contain null elements");
+            copy.add(next);
+        }
+        return copy;
+    }
+
+    private static void requireManualTransaction(Connection connection) throws SQLException {
+        if (connection.getAutoCommit()) {
+            throw new OutboxConfigurationException(
+                    "Connection is in autocommit mode. JdbcOutbox must run inside the caller's"
+                        + " transaction so that outbox writes commit atomically with the business"
+                        + " writes. Configure your ConnectionSupplier to return a connection with"
+                        + " autoCommit=false (e.g. Spring's DataSourceUtils.getConnection inside a"
+                        + " @Transactional method, or a manually managed Connection where the"
+                        + " caller invokes setAutoCommit(false) before publishing).");
+        }
+    }
+
+    private OutboxDialect resolveDialect(Connection connection) throws SQLException {
+        // Volatile read on the hot path; never enters synchronized after the first publish.
+        // Concurrent first publishers may each detect a dialect — that is harmless because
+        // detection is deterministic for a given connection. The last volatile write wins
+        // and every reader sees an equivalent dialect from then on.
+        OutboxDialect local = dialect;
+        if (local == null) {
+            local = autoDetector.detect(connection);
+            dialect = local;
+        }
+        return local;
+    }
+
+    private OutboxException translate(SQLException ex, String contextMessage) {
+        OutboxDialect local = dialect;
+        if (local != null) {
+            return local.translate(ex, contextMessage);
+        }
+        // No dialect resolved yet — fall back to the base type. This path is only reachable
+        // when getConnection() / getMetaData() / getAutoCommit() itself fails before
+        // auto-detection completes, in which case the cause is what the caller cares about.
+        return new OutboxException(contextMessage, ex);
     }
 
     /**
@@ -106,6 +172,7 @@ public final class JdbcOutbox implements Outbox {
      *   <li>{@code schema} = unset (table is referenced unqualified)
      *   <li>{@code clock} = {@link Clock#systemUTC()}
      *   <li>{@code idGenerator} = {@link UuidV7Generator}
+     *   <li>{@code dialect} = unset; resolved lazily on first publish via {@link ServiceLoader}
      * </ul>
      *
      * Only {@link #connectionSupplier(ConnectionSupplier)} is required.
@@ -119,6 +186,7 @@ public final class JdbcOutbox implements Outbox {
         private String schema;
         private Clock clock = Clock.systemUTC();
         private IdGenerator idGenerator = new UuidV7Generator();
+        private OutboxDialect dialect;
 
         private Builder() {}
 
@@ -150,20 +218,18 @@ public final class JdbcOutbox implements Outbox {
             return this;
         }
 
-        public JdbcOutbox build() {
-            Objects.requireNonNull(connectionSupplier, "connectionSupplier must not be null");
-            requireIdentifier(tableName, "tableName");
-            if (schema != null) {
-                requireIdentifier(schema, "schema");
-            }
-            return new JdbcOutbox(this);
+        /**
+         * Pins a specific {@link OutboxDialect}, bypassing auto-detection. Use this when running
+         * against a database where no provider is registered, or when a test needs a fake dialect.
+         */
+        public Builder dialect(OutboxDialect newDialect) {
+            this.dialect = Objects.requireNonNull(newDialect, "dialect must not be null");
+            return this;
         }
 
-        private static void requireIdentifier(String value, String name) {
-            if (!IDENTIFIER.matcher(value).matches()) {
-                throw new IllegalArgumentException(
-                        name + " must match " + IDENTIFIER.pattern() + " but was: " + value);
-            }
+        public JdbcOutbox build() {
+            Objects.requireNonNull(connectionSupplier, "connectionSupplier must not be null");
+            return new JdbcOutbox(this);
         }
     }
 }

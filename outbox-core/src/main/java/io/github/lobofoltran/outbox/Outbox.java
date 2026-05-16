@@ -1,5 +1,7 @@
 package io.github.lobofoltran.outbox;
 
+import java.util.Objects;
+
 /**
  * Writes domain events to the outbox table inside the caller's database transaction.
  *
@@ -31,4 +33,29 @@ public interface Outbox {
      * @throws OutboxException if the underlying store rejects the write.
      */
     void publish(OutboxEvent event);
+
+    /**
+     * Persists every event in {@code events} to the outbox table, atomically with respect to the
+     * caller's transaction.
+     *
+     * <p>The default implementation simply iterates and calls {@link #publish(OutboxEvent)} per
+     * event. Implementations are <em>encouraged</em> to override this with a true batch write (e.g.
+     * JDBC {@code addBatch} / {@code executeBatch}) when the underlying store supports it. The
+     * default exists for source compatibility — every {@link Outbox} produced before this method
+     * was added still satisfies the contract.
+     *
+     * <p>If any individual write fails, the surrounding transaction will not be committed by this
+     * library; the failure surfaces as an {@link OutboxException} subtype on the offending event.
+     *
+     * @param events the events to persist; never {@code null}, individual elements must not be
+     *     {@code null}.
+     * @throws NullPointerException if {@code events} or any element is {@code null}.
+     * @throws OutboxException if the underlying store rejects any write.
+     */
+    default void publishAll(Iterable<OutboxEvent> events) {
+        Objects.requireNonNull(events, "events must not be null");
+        for (OutboxEvent event : events) {
+            publish(event);
+        }
+    }
 }
