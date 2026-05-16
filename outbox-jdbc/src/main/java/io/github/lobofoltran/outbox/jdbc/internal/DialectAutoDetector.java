@@ -25,6 +25,8 @@ import org.slf4j.LoggerFactory;
  * <p>Decoupled from {@code JdbcOutbox} so it can be unit-tested without spinning up a database: the
  * constructor accepts the {@link Iterable} of providers, which production wires through {@link
  * ServiceLoader} and tests wire to a hand-rolled list.
+ *
+ * @since 0.1.0
  */
 public final class DialectAutoDetector {
 

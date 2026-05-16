@@ -27,7 +27,7 @@ import io.github.lobofoltran.outbox.jdbc.JdbcOutbox;
  * {@code JdbcOutbox} without registering their own {@code @Bean Outbox} (which would back off the
  * autoconfig entirely).
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 @FunctionalInterface
 public interface JdbcOutboxBuilderCustomizer {

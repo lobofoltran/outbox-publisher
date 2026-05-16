@@ -27,7 +27,7 @@ import io.github.lobofoltran.outbox.OutboxException;
  * OutboxInsert} handles the dialect returns from {@link #prepareInsert} are <em>not</em> required
  * to be thread-safe; a fresh handle is acquired for every call.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public interface OutboxDialect {
 
@@ -38,6 +38,12 @@ public interface OutboxDialect {
      *
      * <p>The returned handle is bound to {@code connection}; the publisher is responsible for
      * closing it via try-with-resources before the connection commits.
+     *
+     * @param connection the JDBC connection the statement will be prepared on; never {@code null}.
+     * @param table the target outbox table; never {@code null}.
+     * @return a fresh {@link OutboxInsert} handle the publisher will drive for one batch.
+     * @throws SQLException if preparing the statement fails.
+     * @since 0.2.0
      */
     OutboxInsert prepareInsert(Connection connection, TableRef table) throws SQLException;
 
@@ -47,9 +53,14 @@ public interface OutboxDialect {
      *
      * @param ex the original {@link SQLException}; never {@code null}.
      * @param contextMessage human-readable context to include in the exception message.
+     * @return the matching {@link OutboxException} subtype.
      */
     OutboxException translate(SQLException ex, String contextMessage);
 
-    /** Returns the dialect's optional capabilities. */
+    /**
+     * Returns the dialect's optional capabilities.
+     *
+     * @return the set of supported {@link DialectCapability} values.
+     */
     Set<DialectCapability> capabilities();
 }

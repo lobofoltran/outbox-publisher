@@ -79,6 +79,21 @@ class TracedOutboxTest {
     }
 
     @Test
+    void single_publish_omits_message_id_attribute_when_id_is_null() {
+        OutboxEvent event = eventWithoutId("Order", "OrderPlaced", "orders.events");
+
+        traced.publish(event);
+
+        assertThat(delegate.captured).isSameAs(event);
+        SpanData span = singleSpan();
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_MESSAGING_MESSAGE_ID)).isNull();
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_OUTBOX_AGGREGATE_TYPE))
+                .isEqualTo("Order");
+        assertThat(span.getAttributes().get(TracedOutbox.ATTR_OUTBOX_EVENT_TYPE))
+                .isEqualTo("OrderPlaced");
+    }
+
+    @Test
     void single_publish_omits_destination_attribute_when_null() {
         OutboxEvent event = event("Order", "OrderPlaced", null);
 
@@ -229,6 +244,22 @@ class TracedOutboxTest {
         List<SpanData> spans = otel.getSpans();
         assertThat(spans).hasSize(1);
         return spans.get(0);
+    }
+
+    private static OutboxEvent eventWithoutId(
+            String aggregateType, String eventType, String destination) {
+        OutboxEvent.Builder builder =
+                OutboxEvent.builder()
+                        .aggregateType(aggregateType)
+                        .aggregateId("agg-1")
+                        .eventType(eventType)
+                        .contentType("application/json")
+                        .payload(new byte[] {1, 2, 3})
+                        .occurredAt(Instant.parse("2026-03-10T08:30:00Z"));
+        if (destination != null) {
+            builder.destination(destination);
+        }
+        return builder.build();
     }
 
     private static OutboxEvent event(String aggregateType, String eventType, String destination) {
