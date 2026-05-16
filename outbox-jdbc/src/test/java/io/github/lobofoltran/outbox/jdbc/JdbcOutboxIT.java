@@ -140,8 +140,7 @@ class JdbcOutboxIT extends AbstractPostgresIT {
                 java.sql.Statement statement = setup.createStatement()) {
             statement.execute("CREATE SCHEMA IF NOT EXISTS app");
             statement.execute(
-                    ddl.replace("CREATE TABLE outbox", "CREATE TABLE app.outbox")
-                            .replace("ON outbox", "ON app.outbox"));
+                    publisherDdl.replace("CREATE TABLE outbox", "CREATE TABLE app.outbox"));
         }
 
         OutboxEvent event =

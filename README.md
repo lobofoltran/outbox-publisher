@@ -179,14 +179,21 @@ Only releases are published — no SNAPSHOTs.
 
 ### 4. Apply the SQL
 
-The `outbox-schema` module ships a single SQL file as a classpath resource. Copy it into your migration tool of choice (Flyway, Liquibase, hand-rolled — your call):
+The `outbox-schema` module ships **two** SQL files as classpath resources. Copy them into your migration tool of choice (Flyway, Liquibase, hand-rolled — your call):
 
 ```
 outbox-schema/src/main/resources/sql/postgres/
-└── outbox.sql
+├── outbox-publisher.sql          (mandatory)
+└── outbox-relay-extension.sql    (optional — only for the polling relay)
 ```
 
-It contains the table plus two partial indexes — one to back the relay's polling query, one to back the retention purge. See [The `outbox` table contract](#the-outbox-table-contract) for the exact DDL.
+The schema is deliberately split by responsibility (see ADR-0007):
+
+| Adoption mode | Apply | When to choose |
+| --- | --- | --- |
+| **Polling relay** | `outbox-publisher.sql` then `outbox-relay-extension.sql` | You run [`outbox-relay`](#related-projects) (or your own poller) inside the same database. |
+| **CDC (Debezium)** | `outbox-publisher.sql` only | You stream the WAL via Debezium and route events with the Outbox Event Router SMT. The relay-only columns and partial indexes would be pure overhead. |
+| **Hybrid / unsure** | `outbox-publisher.sql` only, today | Start CDC-shaped. The relay extension is idempotent (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`) and can be applied later without data migration. |
 
 This library will **never** create or alter the table automatically. That is your migration tool's job.
 
@@ -258,7 +265,9 @@ Outbox outbox = ServiceLoader.load(Outbox.class).findFirst().orElseThrow();
 
 ## The `outbox` table contract
 
-This is the **only** integration surface between `outbox-publisher` and any consumer. The full DDL (PostgreSQL) is a single file shipped by `outbox-schema`:
+This is the **only** integration surface between `outbox-publisher` and any consumer. The DDL is shipped by `outbox-schema` as two PostgreSQL files — apply the publisher script always, the relay extension only when you run a polling relay (see [Apply the SQL](#4-apply-the-sql)).
+
+### `outbox-publisher.sql` — mandatory
 
 ```sql
 CREATE TABLE outbox (
@@ -270,23 +279,33 @@ CREATE TABLE outbox (
     content_type    VARCHAR(64)  NOT NULL,
     headers         JSONB        NOT NULL DEFAULT '{}'::jsonb,
     destination     VARCHAR(128),
-    occurred_at     TIMESTAMP    NOT NULL,
-    status          VARCHAR(16)  NOT NULL DEFAULT 'PENDING',
-    attempts        INT          NOT NULL DEFAULT 0,
-    next_attempt_at TIMESTAMP,
-    published_at    TIMESTAMP,
-    last_error      TEXT,
+    occurred_at     TIMESTAMPTZ  NOT NULL,
     schema_version  SMALLINT     NOT NULL DEFAULT 1
 );
+```
 
-CREATE INDEX idx_outbox_pending
+`occurred_at` is `TIMESTAMPTZ` (timestamp with time zone) so two JVMs in different time zones writing the same `Instant` produce the same row. See ADR-0005.
+
+### `outbox-relay-extension.sql` — optional, polling relay only
+
+```sql
+ALTER TABLE outbox
+    ADD COLUMN IF NOT EXISTS status          VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    ADD COLUMN IF NOT EXISTS attempts        INT         NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS published_at    TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS last_error      TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_outbox_pending
     ON outbox (next_attempt_at, occurred_at)
     WHERE status = 'PENDING';
 
-CREATE INDEX idx_outbox_sent
+CREATE INDEX IF NOT EXISTS idx_outbox_sent
     ON outbox (published_at)
     WHERE status = 'SENT';
 ```
+
+The script is idempotent so it can be layered on top of an existing publisher table at any time without data migration — useful when a deployment that started CDC-only later adds a polling relay. See ADR-0007.
 
 ### Indexes and the two query patterns
 
@@ -394,7 +413,7 @@ Spring Boot 3.x autoconfiguration. Automatic Maven module (no `module-info.java`
 
 ### `outbox-schema`
 
-A JAR that contains only `.sql` files under `src/main/resources/sql/postgres/`. Nothing on the classpath; intended to be unpacked by your migration tool or copied into your repo.
+A JAR that contains only `.sql` files under `src/main/resources/sql/postgres/` — `outbox-publisher.sql` (mandatory) and `outbox-relay-extension.sql` (optional, polling relay only). Nothing on the classpath; intended to be unpacked by your migration tool or copied into your repo.
 
 ### `outbox-bom`
 

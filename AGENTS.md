@@ -45,7 +45,13 @@ outbox-publisher/
 
 ## Table contract (reference)
 
-Single migration script: `outbox-schema/src/main/resources/sql/postgres/outbox.sql`. Indexes are sized for two query patterns owned by the relay: **polling for pending events** and **purging already-sent events**.
+The schema is split into two scripts under `outbox-schema/src/main/resources/sql/postgres/`. The publisher script is mandatory; the relay extension is applied **only** by adopters that run the polling relay. CDC adopters (Debezium etc.) skip the relay extension entirely. See ADR-0007 for the rationale.
+
+All wall-clock timestamp columns are `TIMESTAMPTZ` (timestamp with time zone) so two JVMs in different zones writing the same `Instant` produce the same row. See ADR-0005.
+
+### Publisher table (`outbox-publisher.sql`)
+
+Mandatory. Contains only the columns the library writes via `outbox.publish(event)`.
 
 ```sql
 CREATE TABLE outbox (
@@ -57,23 +63,31 @@ CREATE TABLE outbox (
     content_type    VARCHAR(64)  NOT NULL,
     headers         JSONB        NOT NULL DEFAULT '{}'::jsonb,
     destination     VARCHAR(128),
-    occurred_at     TIMESTAMP    NOT NULL,
-    status          VARCHAR(16)  NOT NULL DEFAULT 'PENDING',
-    attempts        INT          NOT NULL DEFAULT 0,
-    next_attempt_at TIMESTAMP,
-    published_at    TIMESTAMP,
-    last_error      TEXT,
+    occurred_at     TIMESTAMPTZ  NOT NULL,
     schema_version  SMALLINT     NOT NULL DEFAULT 1
 );
+```
+
+### Relay extension (`outbox-relay-extension.sql`)
+
+Optional. Adds the lifecycle columns and partial indexes consumed by the polling relay. Idempotent (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`) so it can be applied later on a CDC-only deployment without data migration.
+
+```sql
+ALTER TABLE outbox
+    ADD COLUMN IF NOT EXISTS status          VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    ADD COLUMN IF NOT EXISTS attempts        INT         NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS published_at    TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS last_error      TEXT;
 
 -- Relay polling: SELECT ... WHERE status='PENDING' AND (next_attempt_at IS NULL OR next_attempt_at <= now())
 --                ORDER BY occurred_at LIMIT N FOR UPDATE SKIP LOCKED
-CREATE INDEX idx_outbox_pending
+CREATE INDEX IF NOT EXISTS idx_outbox_pending
     ON outbox (next_attempt_at, occurred_at)
     WHERE status = 'PENDING';
 
 -- Retention purge: DELETE FROM outbox WHERE status='SENT' AND published_at < :cutoff
-CREATE INDEX idx_outbox_sent
+CREATE INDEX IF NOT EXISTS idx_outbox_sent
     ON outbox (published_at)
     WHERE status = 'SENT';
 ```
