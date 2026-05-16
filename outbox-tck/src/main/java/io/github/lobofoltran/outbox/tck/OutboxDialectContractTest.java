@@ -55,7 +55,7 @@ import org.junit.jupiter.api.Test;
  * <p>The class lives in {@code src/main/java} so it ships in {@code outbox-tck}'s main JAR. See
  * ADR-0016 for the rationale and the full enumeration of contract tests.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public abstract class OutboxDialectContractTest {
 

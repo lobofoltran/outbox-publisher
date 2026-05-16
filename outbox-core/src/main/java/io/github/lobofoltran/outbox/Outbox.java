@@ -58,7 +58,7 @@ public interface Outbox {
      *     {@code null}.
      * @throws NullPointerException if {@code events} or any element is {@code null}.
      * @throws OutboxException if the underlying store rejects any write.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     default void publishAll(Iterable<OutboxEvent> events) {
         Objects.requireNonNull(events, "events must not be null");

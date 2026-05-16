@@ -31,7 +31,7 @@ import org.springframework.boot.health.contributor.Health;
  * <p>Reports {@code up()} with a {@code table} detail on success; reports {@code down()} carrying
  * the {@link SQLException} cause on failure.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public class OutboxHealthIndicator extends AbstractHealthIndicator {
 
@@ -46,7 +46,7 @@ public class OutboxHealthIndicator extends AbstractHealthIndicator {
      *     null}.
      * @param schema the outbox schema, or {@code null}/blank for an unqualified table.
      * @param tableName the outbox table name.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public OutboxHealthIndicator(DataSource dataSource, String schema, String tableName) {
         super("outbox health check failed");

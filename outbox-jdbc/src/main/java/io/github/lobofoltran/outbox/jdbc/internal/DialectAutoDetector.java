@@ -8,7 +8,11 @@ package io.github.lobofoltran.outbox.jdbc.internal;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import io.github.lobofoltran.outbox.OutboxConfigurationException;
 import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialect;
@@ -25,6 +29,8 @@ import org.slf4j.LoggerFactory;
  * <p>Decoupled from {@code JdbcOutbox} so it can be unit-tested without spinning up a database: the
  * constructor accepts the {@link Iterable} of providers, which production wires through {@link
  * ServiceLoader} and tests wire to a hand-rolled list.
+ *
+ * @since 0.1.0
  */
 public final class DialectAutoDetector {
 
@@ -36,11 +42,45 @@ public final class DialectAutoDetector {
         this.providers = providers;
     }
 
-    /** Loads providers via {@link ServiceLoader} on the {@link OutboxDialect} class loader. */
+    /**
+     * Loads providers via {@link ServiceLoader} cascading three class loaders, in priority order:
+     *
+     * <ol>
+     *   <li>The library's own class loader (the one that loaded {@link OutboxDialect}). This is the
+     *       normal path on flat classpaths.
+     *   <li>The thread context class loader, if set and distinct. Needed for OSGi, Tomcat
+     *       container-vs-{@code WEB-INF/lib}, and JBoss modules, where third-party providers loaded
+     *       by the application class loader are invisible to the library's class loader.
+     *   <li>The system class loader, if distinct. Final fallback for environments where neither of
+     *       the above sees the providers.
+     * </ol>
+     *
+     * <p>Discoveries are deduplicated by {@link Object#getClass() provider.getClass()} so a
+     * provider visible through more than one class loader is loaded once. The selection rule in
+     * {@link #detect(Connection)} (highest {@link OutboxDialectProvider#priority()} wins) is
+     * unchanged; ties are broken by discovery order, which is deterministic given the cascade.
+     */
     public static DialectAutoDetector usingServiceLoader() {
-        return new DialectAutoDetector(
-                ServiceLoader.load(
-                        OutboxDialectProvider.class, OutboxDialect.class.getClassLoader()));
+        List<ClassLoader> candidates = new ArrayList<>(3);
+        candidates.add(OutboxDialect.class.getClassLoader());
+        candidates.add(Thread.currentThread().getContextClassLoader());
+        candidates.add(ClassLoader.getSystemClassLoader());
+
+        List<OutboxDialectProvider> providers = new ArrayList<>();
+        Set<Class<?>> seenProviders = new HashSet<>();
+        Set<ClassLoader> seenLoaders = new HashSet<>();
+        for (ClassLoader classLoader : candidates) {
+            if (classLoader == null || !seenLoaders.add(classLoader)) {
+                continue;
+            }
+            for (OutboxDialectProvider provider :
+                    ServiceLoader.load(OutboxDialectProvider.class, classLoader)) {
+                if (seenProviders.add(provider.getClass())) {
+                    providers.add(provider);
+                }
+            }
+        }
+        return new DialectAutoDetector(providers);
     }
 
     /**

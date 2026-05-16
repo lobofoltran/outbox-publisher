@@ -18,7 +18,7 @@ import java.io.Serial;
  * <p>Dialects classify SQLState classes {@code 08} (connection exception) and {@code 40}
  * (transaction rollback / serialization failure / deadlock) as transient.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public final class OutboxTransientException extends OutboxException {
 
@@ -28,7 +28,7 @@ public final class OutboxTransientException extends OutboxException {
      * Creates a new {@code OutboxTransientException} with the given message.
      *
      * @param message human-readable description of the failure.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public OutboxTransientException(String message) {
         super(message);
@@ -39,7 +39,7 @@ public final class OutboxTransientException extends OutboxException {
      *
      * @param message human-readable description of the failure.
      * @param cause the underlying cause.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public OutboxTransientException(String message, Throwable cause) {
         super(message, cause);

@@ -40,7 +40,7 @@ public record OutboxProperties(
      *
      * @param enabled when {@code false}, the {@code MeteredOutbox} decorator is not applied even if
      *     Micrometer is on the classpath and a {@code MeterRegistry} bean exists.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public record Metrics(@DefaultValue("true") boolean enabled) {}
 
@@ -49,7 +49,7 @@ public record OutboxProperties(
      *
      * @param enabled when {@code false}, the {@code TracedOutbox} decorator is not applied even if
      *     OpenTelemetry is on the classpath and an {@code OpenTelemetry} bean exists.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public record Tracing(@DefaultValue("true") boolean enabled) {}
 
@@ -58,7 +58,7 @@ public record OutboxProperties(
      *
      * @param enabled when {@code false}, the {@code OutboxHealthIndicator} is not registered even
      *     if Spring Boot Actuator is on the classpath.
-     * @since 0.2.0
+     * @since 0.1.0
      */
     public record Health(@DefaultValue("true") boolean enabled) {}
 }

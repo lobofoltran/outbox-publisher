@@ -28,7 +28,7 @@ import io.github.lobofoltran.outbox.OutboxException;
  * <p>Implementations must be thread-safe — a single dialect instance is shared across every {@code
  * publish} / {@code publishAll} call on the {@code JdbcOutbox} that resolved it.
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 public interface OutboxDialect {
 
@@ -50,13 +50,30 @@ public interface OutboxDialect {
      *
      * <p>The SQL is expected to be idempotent on duplicate {@code id} (e.g. PostgreSQL's {@code ON
      * CONFLICT (id) DO NOTHING}).
+     *
+     * @param table the target outbox table; never {@code null}.
+     * @return the parameterized {@code INSERT} SQL string.
      */
     String insertSql(TableRef table);
 
-    /** Binds {@code id} at the given parameter index. */
+    /**
+     * Binds {@code id} at the given parameter index.
+     *
+     * @param statement the prepared statement.
+     * @param index 1-based JDBC parameter index.
+     * @param id the event id; never {@code null}.
+     * @throws SQLException if the JDBC binding fails.
+     */
     void bindId(PreparedStatement statement, int index, UUID id) throws SQLException;
 
-    /** Binds the {@code headers} JSON string at the given parameter index. */
+    /**
+     * Binds the {@code headers} JSON string at the given parameter index.
+     *
+     * @param statement the prepared statement.
+     * @param index 1-based JDBC parameter index.
+     * @param headersJson the serialized headers JSON.
+     * @throws SQLException if the JDBC binding fails.
+     */
     void bindHeaders(PreparedStatement statement, int index, String headersJson)
             throws SQLException;
 
@@ -64,12 +81,22 @@ public interface OutboxDialect {
      * Binds an {@link Instant} as a timezone-aware timestamp at the given parameter index. The
      * dialect is expected to preserve UTC instant equality across writer/reader timezone
      * configurations (see ADR-0005).
+     *
+     * @param statement the prepared statement.
+     * @param index 1-based JDBC parameter index.
+     * @param value the instant to persist.
+     * @throws SQLException if the JDBC binding fails.
      */
     void bindTimestamp(PreparedStatement statement, int index, Instant value) throws SQLException;
 
     /**
      * Binds a nullable string at the given parameter index. Implementations are responsible for
      * picking the correct {@code Types.*} constant when the value is {@code null}.
+     *
+     * @param statement the prepared statement.
+     * @param index 1-based JDBC parameter index.
+     * @param value the string value, or {@code null}.
+     * @throws SQLException if the JDBC binding fails.
      */
     void bindOptionalString(PreparedStatement statement, int index, String value)
             throws SQLException;
@@ -80,10 +107,15 @@ public interface OutboxDialect {
      *
      * @param ex the original {@link SQLException}; never {@code null}.
      * @param contextMessage human-readable context to include in the exception message.
+     * @return the matching {@link OutboxException} subtype.
      */
     OutboxException translate(SQLException ex, String contextMessage);
 
-    /** Returns the dialect's optional capabilities. */
+    /**
+     * Returns the dialect's optional capabilities.
+     *
+     * @return the set of supported {@link DialectCapability} values.
+     */
     Set<DialectCapability> capabilities();
 
     /**
