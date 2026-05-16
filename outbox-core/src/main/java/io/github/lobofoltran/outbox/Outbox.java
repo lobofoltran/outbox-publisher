@@ -7,8 +7,11 @@ package io.github.lobofoltran.outbox;
  * The implementation participates in whichever transaction is currently active on the caller's
  * thread; it does not start one of its own and it does not commit.
  *
- * <p>Implementations are obtained through {@link java.util.ServiceLoader} or, in Spring Boot
- * applications, through the autoconfiguration in {@code outbox-spring}.
+ * <p>Implementations are obtained either through the autoconfiguration in {@code outbox-spring},
+ * which exposes a Spring bean of type {@code Outbox}, or by directly instantiating the JDBC
+ * implementation through its builder ({@code JdbcOutbox.builder()...build()}). {@code outbox-core}
+ * deliberately does not expose any service-loader or factory hook for {@code Outbox} itself —
+ * dialect-level pluggability inside {@code outbox-jdbc} is a separate, internal concern.
  *
  * <p>Implementations are expected to be thread-safe.
  *

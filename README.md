@@ -60,7 +60,7 @@ Key design decisions:
 ┌────────────────────────────────────────────────────────────┐
 │ outbox-core    (interface Outbox, record OutboxEvent)      │
 └─────────────────────────▲──────────────────────────────────┘
-                          │ provides Outbox via ServiceLoader
+                          │ implements Outbox
                           │
 ┌────────────────────────────────────────────────────────────┐
 │ outbox-jdbc    (JdbcOutbox — INSERT in the caller's TX)    │
@@ -250,12 +250,6 @@ try (Connection conn = ds.getConnection()) {
 }
 ```
 
-`Outbox` itself is discovered via `ServiceLoader` from `outbox-jdbc`, so you can also obtain it without referencing the implementation class:
-
-```java
-Outbox outbox = ServiceLoader.load(Outbox.class).findFirst().orElseThrow();
-```
-
 ## The `outbox` table contract
 
 This is the **only** integration surface between `outbox-publisher` and any consumer. The full DDL (PostgreSQL) is a single file shipped by `outbox-schema`:
@@ -362,9 +356,7 @@ JPMS:
 
 ```java
 module io.github.lobofoltran.outbox.core {
-    requires org.slf4j;
     exports io.github.lobofoltran.outbox;
-    uses io.github.lobofoltran.outbox.Outbox;
 }
 ```
 
@@ -374,15 +366,14 @@ JDBC implementation. Internals are **not** exported.
 
 ```java
 module io.github.lobofoltran.outbox.jdbc {
-    requires io.github.lobofoltran.outbox.core;
+    requires transitive io.github.lobofoltran.outbox.core;
     requires java.sql;
     requires org.slf4j;
-    provides io.github.lobofoltran.outbox.Outbox
-        with io.github.lobofoltran.outbox.jdbc.JdbcOutbox;
+    exports io.github.lobofoltran.outbox.jdbc;
 }
 ```
 
-Consumers cannot `import io.github.lobofoltran.outbox.jdbc.JdbcOutbox`. They obtain `Outbox` either through Spring autoconfiguration or `ServiceLoader`.
+Consumers obtain `Outbox` either through the Spring Boot autoconfiguration in `outbox-spring` or by directly invoking `JdbcOutbox.builder()...build()`. There is no `ServiceLoader` discovery of `Outbox` — `outbox-jdbc` may use `ServiceLoader` internally for future dialect providers, but that is an implementation detail of `outbox-jdbc`, not part of the `outbox-core` contract.
 
 ### `outbox-spring`
 
