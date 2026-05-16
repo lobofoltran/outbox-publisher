@@ -8,7 +8,10 @@ import javax.sql.DataSource;
 import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.jdbc.JdbcOutbox;
+import io.github.lobofoltran.outbox.micrometer.MeteredOutbox;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -98,12 +101,88 @@ class OutboxAutoConfigurationTest {
                         });
     }
 
+    @Test
+    @DisplayName("wraps the Outbox bean with MeteredOutbox when a MeterRegistry is present")
+    void wraps_with_metered_outbox_when_micrometer_is_available() {
+        runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+                .run(
+                        context -> {
+                            assertThat(context).hasSingleBean(Outbox.class);
+                            assertThat(context.getBean(Outbox.class))
+                                    .isInstanceOf(MeteredOutbox.class);
+                        });
+    }
+
+    @Test
+    @DisplayName("leaves the Outbox bean bare when no MeterRegistry is in the context")
+    void does_not_wrap_when_no_meter_registry() {
+        runner.run(
+                context -> {
+                    assertThat(context).hasSingleBean(Outbox.class);
+                    assertThat(context.getBean(Outbox.class)).isNotInstanceOf(MeteredOutbox.class);
+                });
+    }
+
+    @Test
+    @DisplayName("respects metrics.enabled=false even when Micrometer is available")
+    void opts_out_when_metrics_enabled_is_false() {
+        runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+                .withPropertyValues("io.github.lobofoltran.outbox.metrics.enabled=false")
+                .run(
+                        context -> {
+                            assertThat(context).hasSingleBean(Outbox.class);
+                            assertThat(context.getBean(Outbox.class))
+                                    .isNotInstanceOf(MeteredOutbox.class);
+                        });
+    }
+
+    @Test
+    @DisplayName("does not double-wrap a user-provided MeteredOutbox")
+    void does_not_double_wrap_existing_metered_outbox() {
+        runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+                .withUserConfiguration(UserMeteredOutboxConfig.class)
+                .run(
+                        context -> {
+                            Outbox bean = context.getBean(Outbox.class);
+                            assertThat(bean).isInstanceOf(MeteredOutbox.class);
+                            assertThat(bean)
+                                    .isSameAs(
+                                            context.getBean(UserMeteredOutboxConfig.class)
+                                                    .expected);
+                        });
+    }
+
+    @Test
+    @DisplayName("leaves the Outbox unwrapped when MeteredOutbox is not on the classpath")
+    void does_not_wrap_when_outbox_micrometer_is_missing() {
+        runner.withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+                .withClassLoader(new FilteredClassLoader(MeteredOutbox.class))
+                .run(
+                        context -> {
+                            assertThat(context).hasSingleBean(Outbox.class);
+                            assertThat(context.getBean(Outbox.class))
+                                    .isNotInstanceOf(MeteredOutbox.class);
+                        });
+    }
+
     @Configuration
     static class UserOutboxConfig {
 
         @Bean
         Outbox outbox() {
             return new StubOutbox();
+        }
+    }
+
+    @Configuration
+    static class UserMeteredOutboxConfig {
+
+        final MeteredOutbox expected =
+                new MeteredOutbox(new StubOutbox(), new SimpleMeterRegistry());
+
+        @Bean
+        Outbox outbox() {
+            return expected;
         }
     }
 
