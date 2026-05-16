@@ -589,6 +589,16 @@
                             <notimestamp>true</notimestamp>
                             <quiet>true</quiet>
                             <failOnWarnings>false</failOnWarnings>
+                            <!--
+                                Do not fail the release if javadoc reports any "error". The most
+                                common cause in practice is a transient network failure fetching
+                                `package-list` from one of the external <links/> below (e.g. a
+                                Cloudflare 522 from javadoc.io). The Javadoc HTML is still
+                                generated in that case — only the cross-links to the affected
+                                external API are missing — which is a far better outcome than
+                                aborting an otherwise green release.
+                            -->
+                            <failOnError>false</failOnError>
                             <detectJavaApiLink>false</detectJavaApiLink>
                             <detectLinks>false</detectLinks>
                             <detectOfflineLinks>false</detectOfflineLinks>
