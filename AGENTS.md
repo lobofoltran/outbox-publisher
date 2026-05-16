@@ -324,12 +324,6 @@ Do not commit between `apply` and `verify` — review the diff first.
 
 `mvn wrapper:wrapper` errors with `MavenProject.getCollectedProjects() is null` when run in an empty repo. Create the parent `pom.xml` first, then generate the wrapper. After that, switch to `./mvnw` for everything.
 
-### PIT does not run under JDK 25 yet
-
-`pitest-maven` up to 1.19.1 ships an ASM version that does not understand the JDK 25 class file format (major version 69) and fails with `Unsupported class file major version 69`. JaCoCo's 90/90 (and the per-module overrides) remains the source of truth until PIT catches up. The nightly `pit.yml` workflow already runs with `continue-on-error: true` so the failure produces no artifact but does not break the schedule.
-
-Local workaround for contributors that want PIT signal: temporarily run `./mvnw -Ppit test` under JDK 21 (`sdk use java 21.0.10-zulu`). Bytecode compiled with `release=25` features (records, pattern matching) may not be testable that way, so this is a partial check at best.
-
 ### Restricted-method warnings from Maven 3.9.x on Java 25 are benign
 
 `jansi`, `guava` and a few other Maven internals print warnings like `WARNING: A restricted method in java.lang.System has been called` and `sun.misc.Unsafe::objectFieldOffset will be removed in a future release`. They originate inside Maven itself, not the project, and disappear when Maven ships a JDK-25-friendly release. Filter them in shell pipelines if they hide errors:

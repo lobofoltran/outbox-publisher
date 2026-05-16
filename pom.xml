@@ -92,7 +92,7 @@
         <spotless-maven-plugin.version>2.44.5</spotless-maven-plugin.version>
         <google-java-format.version>1.27.0</google-java-format.version>
         <flatten-maven-plugin.version>1.7.0</flatten-maven-plugin.version>
-        <pitest-maven.version>1.19.1</pitest-maven.version>
+        <pitest-maven.version>1.23.1</pitest-maven.version>
         <pitest-junit5-plugin.version>1.2.1</pitest-junit5-plugin.version>
         <error-prone.version>2.36.0</error-prone.version>
         <checkstyle.version>13.4.2</checkstyle.version>
