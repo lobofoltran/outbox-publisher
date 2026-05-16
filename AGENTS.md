@@ -324,6 +324,28 @@ Do not commit between `apply` and `verify` — review the diff first.
 
 `mvn wrapper:wrapper` errors with `MavenProject.getCollectedProjects() is null` when run in an empty repo. Create the parent `pom.xml` first, then generate the wrapper. After that, switch to `./mvnw` for everything.
 
+### PIT struggles with JPMS-modular modules
+
+`pitest-maven` 1.23.1 runs cleanly against `outbox-core` (which is JPMS-modular but has no Testcontainers tests) but fails with `Coverage generation Minion exited abnormally (UNKNOWN_ERROR)` against `outbox-jdbc`. The combination of `module-info.java`, `--patch-module` test compilation, and PIT's minion process appears to be the trigger — the unit tests run fine through Surefire on the same module.
+
+Mitigations in place:
+
+- The `pit` profile excludes integration tests (`*IT`) so Testcontainers is not the issue.
+- The nightly `pit.yml` workflow keeps `continue-on-error: true`; module failures do not stop the schedule.
+- JaCoCo 100/100 line+branch via real-PG integration tests remains the source of truth for `outbox-jdbc` quality.
+
+When PIT upstream lands proper module-path support, drop this note and re-enable strict mutation thresholds per `AGENTS > Test coverage`.
+
+### Testcontainers on macOS Docker Desktop needs an explicit socket
+
+Testcontainers' Docker auto-detection occasionally fails to find Docker Desktop's socket on macOS. If you see `Could not find a valid Docker environment` when running `./mvnw verify -pl outbox-jdbc`, set:
+
+```bash
+export DOCKER_HOST=unix:///Users/$(whoami)/.docker/run/docker.sock
+```
+
+before running Maven. CI runners (Linux) do not need this — they use the default `/var/run/docker.sock`.
+
 ### Restricted-method warnings from Maven 3.9.x on Java 25 are benign
 
 `jansi`, `guava` and a few other Maven internals print warnings like `WARNING: A restricted method in java.lang.System has been called` and `sun.misc.Unsafe::objectFieldOffset will be removed in a future release`. They originate inside Maven itself, not the project, and disappear when Maven ships a JDK-25-friendly release. Filter them in shell pipelines if they hide errors:
