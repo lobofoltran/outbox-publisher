@@ -379,6 +379,45 @@ class OutboxEventTest {
     }
 
     @Nested
+    @DisplayName("payloadSize")
+    class PayloadSize {
+
+        @Test
+        void returns_underlying_payload_length() {
+            OutboxEvent event = validBuilder().payload(new byte[] {1, 2, 3, 4, 5}).build();
+            assertThat(event.payloadSize()).isEqualTo(5);
+        }
+
+        @Test
+        void returns_zero_for_empty_payload() {
+            OutboxEvent event = validBuilder().payload(new byte[0]).build();
+            assertThat(event.payloadSize()).isZero();
+        }
+
+        @Test
+        void does_not_clone_payload() {
+            // A 1 MiB payload makes each defensive clone non-trivial (well into microseconds).
+            // 1,000,000 calls to payloadSize() must therefore be effectively instantaneous —
+            // any implementation that cloned the array would take on the order of seconds,
+            // not under the 100ms threshold below.
+            byte[] big = new byte[1 << 20];
+            OutboxEvent event = validBuilder().payload(big).build();
+
+            long start = System.nanoTime();
+            int total = 0;
+            for (int i = 0; i < 1_000_000; i++) {
+                total += event.payloadSize();
+            }
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+
+            assertThat(total).isEqualTo(1_000_000 * (1 << 20));
+            assertThat(elapsedMs)
+                    .as("1M payloadSize() calls completed in %d ms", elapsedMs)
+                    .isLessThan(100L);
+        }
+    }
+
+    @Nested
     @DisplayName("equality")
     class Equality {
 

@@ -50,9 +50,9 @@ public final class MeteredOutbox implements Outbox {
     @Override
     public void publish(OutboxEvent event) {
         Objects.requireNonNull(event, "event must not be null");
-        // payload() returns a defensive copy; call it once before the timer starts so
-        // the clone time is not counted as publish latency.
-        int payloadBytes = event.payload().length;
+        // payloadSize() returns the byte length without cloning the underlying array,
+        // so we pay no allocation on the hot publish path.
+        int payloadBytes = event.payloadSize();
         Timer.Sample sample = Timer.start(registry);
         boolean success = false;
         try {
