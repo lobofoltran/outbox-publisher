@@ -289,6 +289,55 @@ Exclusions beyond this list require an inline justification comment in `pom.xml`
 
 Consumers must declare the GitHub Packages repository in `~/.m2/settings.xml` and use a PAT with `read:packages` scope. This friction is acknowledged; see [Locked decisions](#locked-decisions) for the Maven Central migration plan.
 
+## Local development gotchas
+
+Quirks discovered while bootstrapping the build. Read these before your first PR; they will save you 20 minutes each.
+
+### Activate Java 25 per shell
+
+Maven is installed on the typical contributor machine through SDKMAN with Java 21 as the default. The project requires Java 25 (enforced via `maven-enforcer-plugin`), so every fresh shell needs:
+
+```bash
+sdk use java 25.0.2-zulu     # or any 25.x distribution available locally
+```
+
+Without that, `./mvnw` fails at the enforcer step.
+
+CI workflows use `actions/setup-java` and do not have this problem.
+
+### Always go through `./mvnw`
+
+Plugin versions are pinned and tested only against the wrapper-bundled Maven (currently 3.9.9). Calling a globally installed `mvn` may resolve different versions of `flatten-maven-plugin`, `spotless-maven-plugin`, etc. and produce confusing diffs.
+
+### Spotless rewrites POMs aggressively (`sortPom`)
+
+The `quality` profile runs `spotless:check` and will fail if a POM is not sorted into Spotless's canonical layout. Standard workflow when editing or adding a POM:
+
+```bash
+./mvnw -B -ntp -Pquality spotless:apply   # rewrites POMs and Java sources in place
+./mvnw -B -ntp -Pquality verify           # then validate
+```
+
+Do not commit between `apply` and `verify` — review the diff first.
+
+### Generating the Maven wrapper requires an existing parent POM
+
+`mvn wrapper:wrapper` errors with `MavenProject.getCollectedProjects() is null` when run in an empty repo. Create the parent `pom.xml` first, then generate the wrapper. After that, switch to `./mvnw` for everything.
+
+### Restricted-method warnings from Maven 3.9.x on Java 25 are benign
+
+`jansi`, `guava` and a few other Maven internals print warnings like `WARNING: A restricted method in java.lang.System has been called` and `sun.misc.Unsafe::objectFieldOffset will be removed in a future release`. They originate inside Maven itself, not the project, and disappear when Maven ships a JDK-25-friendly release. Filter them in shell pipelines if they hide errors:
+
+```bash
+./mvnw -B -ntp -Pquality verify 2>&1 | grep -vE '^WARNING:'
+```
+
+### Branch protection vs. AI workflow
+
+`main` is configured to reject unsigned commits. Local config in this repo sets `commit.gpgsign=true` and `tag.gpgsign=true` automatically; if your signature still shows `Unverified` on GitHub, the email on the commit is not associated with a verified GPG key on your GitHub profile.
+
+When working with an AI agent, after every code-producing turn the AI must amend its commits to include the `Co-Authored-By: Devin` trailer (see [Commit & PR rules](#commit--pr-rules)). If the AI forgets, the human reviewer should call it out before merging.
+
 ## Commit & PR rules
 
 - **Conventional Commits** are mandatory. Allowed types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `build`, `ci`, `perf`.
@@ -299,7 +348,16 @@ Consumers must declare the GitHub Packages repository in `~/.m2/settings.xml` an
 - **One logical change per PR.** Cross-cutting refactors (e.g. renaming a package across all modules) must be split into separate PRs per concern, or clearly justified in the description.
 - **PR description MUST link to the ADR / PRD it implements.** When a change predates the ADR, the PR adds the ADR first, in a separate commit, and links it.
 - **All commits and tags MUST be GPG-signed.** Signing keys are configured via `git config --local` only — the global git config is never modified by this project. Branch protection on `main` rejects unsigned commits.
-- **PR template** (to be added before the first release) requires:
+- **Every commit authored with the help of an AI agent MUST carry a `Co-Authored-By` trailer for that agent.** This is non-optional and applies to amends and rebases too. The trailer block at the end of the commit message is:
+
+  ```
+  Generated with [Devin](https://cli.devin.ai/docs)
+
+  Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+  ```
+
+  When in doubt, re-attach via `git rebase main --exec 'add_trailer.sh'` and force-push the feature branch. **Never** force-push `main` without explicit confirmation in the conversation that produced the change.
+- **PR template** requires:
   - Which stage of the roadmap this belongs to
   - Risk summary
   - Rollback plan
