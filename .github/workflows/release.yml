@@ -46,13 +46,14 @@ jobs:
       - name: Attach signed JARs and SBOM to the GitHub Release
         uses: softprops/action-gh-release@v3
         with:
+          # NOTE: `**/target/*.jar` already matches `-sources.jar` and `-javadoc.jar`
+          # (and likewise for `.jar.asc`). Listing those classifiers separately caused
+          # softprops/action-gh-release to upload each one twice and then hit a race
+          # in the GitHub assets API (`PATCH … 404 Not Found`) when renaming the
+          # replacement asset. Keep the globs non-overlapping.
           files: |
             **/target/*.jar
             **/target/*.jar.asc
-            **/target/*-sources.jar
-            **/target/*-sources.jar.asc
-            **/target/*-javadoc.jar
-            **/target/*-javadoc.jar.asc
             target/bom.json
             target/bom.xml
             docs/security/ci-pubkey.asc
