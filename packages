@@ -1,0 +1,7 @@
+io.github.lobofoltran.outbox
+io.github.lobofoltran.outbox.jdbc.spi
+io.github.lobofoltran.outbox.jdbc
+io.github.lobofoltran.outbox.spring
+io.github.lobofoltran.outbox.micrometer
+io.github.lobofoltran.outbox.otel
+io.github.lobofoltran.outbox.tck
