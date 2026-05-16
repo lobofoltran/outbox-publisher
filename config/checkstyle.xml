@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+  Checkstyle configuration for outbox-publisher.
+
+  Enforces the org-wide Java coding standard (sections 3.6 through 3.11 of
+  AGENTS.md). Pure formatting concerns belong to Spotless / palantir-java-format
+  and are intentionally not duplicated here.
+-->
+<module name="Checker">
+    <property name="severity" value="error"/>
+    <property name="fileExtensions" value="java"/>
+
+    <module name="SuppressWarningsFilter"/>
+
+    <!-- File-level checks -->
+    <module name="FileTabCharacter"/>
+    <module name="NewlineAtEndOfFile"/>
+    <module name="RegexpSingleline">
+        <property name="format" value="\s+$"/>
+        <property name="message" value="Trailing whitespace is forbidden."/>
+    </module>
+
+    <module name="TreeWalker">
+        <module name="SuppressWarningsHolder"/>
+
+        <!-- Imports (§3.11) -->
+        <module name="AvoidStarImport"/>
+        <module name="RedundantImport"/>
+        <module name="UnusedImports">
+            <property name="processJavadoc" value="true"/>
+        </module>
+
+        <!-- The `var` keyword is forbidden in production code (§3.10).
+             Spotted via a TokenSet check; reduced to a warning in test sources
+             via Maven's testSourceDirectory exclusion. -->
+        <module name="IllegalType">
+            <property name="illegalClassNames" value="var"/>
+            <property name="id" value="ForbidVarInProductionCode"/>
+        </module>
+
+        <!-- Generics and type safety (§3.7) -->
+        <module name="MissingDeprecated"/>
+
+        <!-- Exceptions (§3.9) -->
+        <module name="EmptyCatchBlock">
+            <property name="exceptionVariableName" value="expected|ignored"/>
+        </module>
+        <module name="IllegalCatch">
+            <property name="illegalClassNames"
+                      value="java.lang.Exception, java.lang.Throwable, java.lang.RuntimeException"/>
+        </module>
+        <module name="IllegalThrows"/>
+
+        <!-- JUnit 4 imports are forbidden (§3.14) -->
+        <module name="IllegalImport">
+            <property name="illegalPkgs" value=""/>
+            <property name="illegalClasses"
+                      value="org.junit.Test,
+                             org.junit.Assert,
+                             org.junit.Before,
+                             org.junit.After,
+                             org.junit.Ignore,
+                             org.junit.Rule,
+                             org.junit.ClassRule,
+                             org.mockito.junit.MockitoJUnitRunner,
+                             org.springframework.test.context.junit4.SpringRunner,
+                             org.springframework.test.util.ReflectionTestUtils"/>
+        </module>
+        <module name="IllegalImport">
+            <property name="illegalPkgs" value="org.junit.runners"/>
+        </module>
+
+        <!-- Reflection in tests is forbidden (§3.14) -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="\.setAccessible\s*\(\s*true\s*\)"/>
+            <property name="message" value="setAccessible(true) is forbidden — refactor to expose behavior through the public API."/>
+        </module>
+
+        <!-- Mockito strictness: forbid never() and verifyNo*Interactions (§3.14) -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="\b(verifyNoInteractions|verifyZeroInteractions|verifyNoMoreInteractions)\s*\("/>
+            <property name="message" value="Forbidden verify* call — Mockito strictness already enforces this."/>
+        </module>
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="\bverify\s*\([^)]*\)\s*\.\s*never\b"/>
+            <property name="message" value="never() verification is forbidden — omit the verify call instead."/>
+        </module>
+
+        <!-- @VisibleForTesting-style annotations are forbidden (§3.14) -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="@VisibleForTesting"/>
+            <property name="message" value="@VisibleForTesting is forbidden — refactor instead."/>
+        </module>
+
+        <!-- e.printStackTrace() is forbidden (§3.9) -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="\.printStackTrace\s*\("/>
+            <property name="message" value="printStackTrace() is forbidden — log through SLF4J instead."/>
+        </module>
+
+        <!-- Boxing constructors are forbidden (§3.6) -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="new\s+(Integer|Long|Boolean|Double|Byte|Short|Float|Character)\s*\("/>
+            <property name="message" value="Boxing constructors are forbidden — use Integer.valueOf(...) etc."/>
+        </module>
+
+        <!-- Misc -->
+        <module name="OuterTypeFilename"/>
+        <module name="OneTopLevelClass"/>
+    </module>
+</module>
