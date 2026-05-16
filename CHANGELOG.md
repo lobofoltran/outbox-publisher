@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/). Releases are managed automatically by [release-please](https://github.com/googleapis/release-please).
 
+## [0.4.2](https://github.com/lobofoltran/outbox-publisher/compare/v0.4.1...v0.4.2) (2026-05-16)
+
+
+### Bug Fixes
+
+* **release:** tolerate transient javadoc.io fetch failures during attach-javadocs ([#77](https://github.com/lobofoltran/outbox-publisher/issues/77)) ([6de0da6](https://github.com/lobofoltran/outbox-publisher/commit/6de0da6ba56f9fda54e882a481c3f6df81bbc2b0))
+
 ## [0.4.1](https://github.com/lobofoltran/outbox-publisher/compare/v0.4.0...v0.4.1) (2026-05-16)
 
 
