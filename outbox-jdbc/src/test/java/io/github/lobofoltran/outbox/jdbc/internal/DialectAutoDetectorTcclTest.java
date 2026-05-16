@@ -24,14 +24,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Verifies that {@link DialectAutoDetector#usingServiceLoader()} discovers providers via the
- * thread context class loader (TCCL) when they are not declared on the library's own classpath.
+ * Verifies that {@link DialectAutoDetector#usingServiceLoader()} discovers providers via the thread
+ * context class loader (TCCL) when they are not declared on the library's own classpath.
  *
  * <p>The fake provider class lives in the test classpath (so it is loadable), but the {@code
- * META-INF/services/...OutboxDialectProvider} file declaring it is written to a temporary
- * directory exposed only through a {@link URLClassLoader} installed as the TCCL. The library
- * class loader therefore cannot reach the service declaration through {@link
- * java.util.ServiceLoader} and must fall back to the TCCL.
+ * META-INF/services/...OutboxDialectProvider} file declaring it is written to a temporary directory
+ * exposed only through a {@link URLClassLoader} installed as the TCCL. The library class loader
+ * therefore cannot reach the service declaration through {@link java.util.ServiceLoader} and must
+ * fall back to the TCCL.
  */
 class DialectAutoDetectorTcclTest {
 

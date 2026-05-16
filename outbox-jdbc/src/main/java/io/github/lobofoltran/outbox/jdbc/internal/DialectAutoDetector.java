@@ -11,8 +11,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import io.github.lobofoltran.outbox.OutboxConfigurationException;
 import io.github.lobofoltran.outbox.jdbc.spi.OutboxDialect;
@@ -69,16 +69,16 @@ public final class DialectAutoDetector {
         if (contextLoader != null && contextLoader != libraryLoader) {
             addProviders(providers, seen, contextLoader);
         }
-        if (systemLoader != null && systemLoader != libraryLoader && systemLoader != contextLoader) {
+        if (systemLoader != null
+                && systemLoader != libraryLoader
+                && systemLoader != contextLoader) {
             addProviders(providers, seen, systemLoader);
         }
         return new DialectAutoDetector(providers);
     }
 
     private static void addProviders(
-            List<OutboxDialectProvider> providers,
-            Set<Class<?>> seen,
-            ClassLoader classLoader) {
+            List<OutboxDialectProvider> providers, Set<Class<?>> seen, ClassLoader classLoader) {
         ServiceLoader<OutboxDialectProvider> loader =
                 ServiceLoader.load(OutboxDialectProvider.class, classLoader);
         for (OutboxDialectProvider provider : loader) {
