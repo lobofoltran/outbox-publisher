@@ -57,13 +57,11 @@
              by the metrics BeanPostProcessor's @ConditionalOnClass / @ConditionalOnBean
              checks. We do not redistribute it: consumers running on Spring Boot already
              have Micrometer pulled in by spring-boot-actuator at the version managed by
-             their Spring Boot BOM. The explicit version below is a minimum baseline for
-             pure-compile usage (e.g. IDEs, non-Boot consumers); the Spring Boot BOM
-             dependency management on the consumer side will normally override it. -->
+             their Spring Boot BOM. The version is resolved from the parent's
+             dependencyManagement so the consumer's BOM can still override it. -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
-            <version>${micrometer.version}</version>
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
