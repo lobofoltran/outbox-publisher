@@ -59,7 +59,7 @@
 
     <properties>
         <!-- Single source of truth for the project version (rewritten by release-please). -->
-        <revision>1.0.0-SNAPSHOT</revision>
+        <revision>0.1.0</revision>
 
         <!-- Build encoding -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
