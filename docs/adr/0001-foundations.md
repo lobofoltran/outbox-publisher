@@ -169,6 +169,8 @@ Each section below states one decision, its rationale, the rejected alternatives
 
 ### D14 — Artifact registry
 
+> Status: superseded in part by ADR-0003.
+
 **Decision:** GitHub Packages (Maven).
 
 **Rationale:** simplest path for an `io.github.*` project; integrates with the existing `GITHUB_TOKEN` in CI.
