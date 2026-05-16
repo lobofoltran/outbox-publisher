@@ -13,11 +13,13 @@ import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.OutboxException;
 
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
+import io.opentelemetry.sdk.common.InstrumentationScopeInfo;
 import io.opentelemetry.sdk.testing.junit5.OpenTelemetryExtension;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.data.StatusData;
@@ -163,8 +165,37 @@ class TracedOutboxTest {
     @Test
     void rejects_null_tracer() {
         assertThatNullPointerException()
-                .isThrownBy(() -> new TracedOutbox(delegate, null))
+                .isThrownBy(() -> new TracedOutbox(delegate, (Tracer) null))
                 .withMessageContaining("tracer");
+    }
+
+    @Test
+    void otel_constructor_emits_spans_on_the_libraries_instrumentation_scope() {
+        TracedOutbox tracedFromOtel = new TracedOutbox(delegate, otel.getOpenTelemetry());
+
+        tracedFromOtel.publish(event("Order", "OrderPlaced", "orders.events"));
+
+        SpanData span = singleSpan();
+        InstrumentationScopeInfo scope = span.getInstrumentationScopeInfo();
+        assertThat(scope.getName()).isEqualTo(TracedOutbox.INSTRUMENTATION_NAME);
+        // The version is whatever `Package.getImplementationVersion()` reports; in the in-reactor
+        // test build there is typically no manifest so it falls back to "unknown". The contract
+        // we pin is "the scope is set, the version is non-null", not the literal value.
+        assertThat(scope.getVersion()).isNotNull();
+    }
+
+    @Test
+    void otel_constructor_rejects_null_otel() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> new TracedOutbox(delegate, (OpenTelemetry) null))
+                .withMessageContaining("otel");
+    }
+
+    @Test
+    void otel_constructor_rejects_null_delegate() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> new TracedOutbox(null, otel.getOpenTelemetry()))
+                .withMessageContaining("delegate");
     }
 
     @Test

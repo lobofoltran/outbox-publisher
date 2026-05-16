@@ -72,20 +72,41 @@ outbox-tck/
 ```
 
 The module exports `io.github.lobofoltran.outbox.tck` and `requires
-transitive` JUnit Jupiter API, AssertJ, and Testcontainers so external authors
-do not need to re-declare the testing toolchain. JUnit/AssertJ/Testcontainers
-are intentionally **not** scope=`test` in this module — they are part of the
-TCK's public API.
+transitive` `outbox-core`, `outbox-jdbc`, `java.sql`, JUnit Jupiter API, and
+AssertJ so external authors do not need to re-declare the contract surface.
+JUnit and AssertJ are intentionally **not** scope=`test` in this module — they
+are part of the TCK's public API.
 
-The reference implementation lives in `outbox-jdbc/src/test/java`:
+Testcontainers is shipped as a `compile`-scope Maven dependency for authoring
+convenience but is intentionally **not** declared as a JPMS `requires`. The
+contract base accepts a `javax.sql.DataSource` — no Testcontainers type
+appears in any of its method signatures, fields, or thrown types — so a
+JPMS-modular consumer that uses a non-Testcontainers `DataSource` (e.g. an
+embedded H2, a service-managed Postgres) does not need Testcontainers at all.
+Adding `requires transitive testcontainers` would also (a) lock every
+consumer module to the brittle, filename-derived module name `testcontainers`
+(the JAR has no `Automatic-Module-Name` manifest entry) and (b) force the
+test-compile of subclassers to additionally `requires postgresql` for the
+`org.testcontainers:postgresql` companion JAR, which is a separate module.
+Subclassers declare `requires testcontainers` themselves in their own
+`module-info.java`, exactly the way `PostgresDialectContractIT` does.
+
+A smoke test (`TckModuleInfoTest`) pins the `requires transitive` set above
+using the public `java.lang.module.ModuleDescriptor` API, so a future edit
+that drops the `transitive` modifier or removes a required edge fails CI.
+
+The reference implementation lives in `outbox-tck/src/test/java`:
 
 ```
-outbox-jdbc/src/test/java/.../dialect/postgres/PostgresDialectContractIT.java
+outbox-tck/src/test/java/.../tck/PostgresDialectContractIT.java
 ```
 
-It extends `OutboxDialectContractTest`, wires `PostgresDialect`, a
-Testcontainers PG `DataSource`, and applies `outbox-publisher.sql`. The IT
-runs in `verify` and must pass 100% of the contract.
+It extends `OutboxDialectContractTest`, resolves `PostgresDialect` via
+`ServiceLoader`, wires a Testcontainers PG `DataSource`, and applies
+`outbox-publisher.sql`. Co-locating the reference IT with the TCK (rather
+than under `outbox-jdbc/src/test/java`) avoids the reactor cycle that would
+arise from `outbox-jdbc` depending test-scope on `outbox-tck`. The IT runs
+in `verify` and must pass 100% of the contract.
 
 ## Contract surface
 
