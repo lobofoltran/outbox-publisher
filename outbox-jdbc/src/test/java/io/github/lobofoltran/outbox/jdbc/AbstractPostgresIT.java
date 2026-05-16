@@ -30,16 +30,21 @@ abstract class AbstractPostgresIT {
     static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>("postgres:16-alpine").withReuse(false);
 
-    protected static String ddl;
+    protected static String publisherDdl;
+    protected static String relayExtensionDdl;
 
     @BeforeAll
     static void loadDdl() throws IOException {
-        try (InputStream in =
-                AbstractPostgresIT.class.getResourceAsStream("/sql/postgres/outbox.sql")) {
+        publisherDdl = loadResource("/sql/postgres/outbox-publisher.sql");
+        relayExtensionDdl = loadResource("/sql/postgres/outbox-relay-extension.sql");
+    }
+
+    private static String loadResource(String resource) throws IOException {
+        try (InputStream in = AbstractPostgresIT.class.getResourceAsStream(resource)) {
             if (in == null) {
-                throw new IllegalStateException("/sql/postgres/outbox.sql not on the classpath");
+                throw new IllegalStateException(resource + " not on the classpath");
             }
-            ddl = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 
@@ -48,7 +53,8 @@ abstract class AbstractPostgresIT {
         try (Connection connection = openConnection();
                 Statement statement = connection.createStatement()) {
             statement.execute("DROP TABLE IF EXISTS outbox");
-            statement.execute(ddl);
+            statement.execute(publisherDdl);
+            statement.execute(relayExtensionDdl);
         }
     }
 
