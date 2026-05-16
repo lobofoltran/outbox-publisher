@@ -67,6 +67,17 @@
             <artifactId>outbox-schema</artifactId>
             <scope>test</scope>
         </dependency>
+        <!--
+            Brings Micrometer's MetricsAutoConfiguration / SimpleMetricsExportAutoConfiguration on
+            the test classpath so we can exercise the real autoconfig ordering against
+            OutboxAutoConfiguration. Without this dep the regression test would have to register a
+            MeterRegistry bean manually, which is exactly what hid DEBT-02 in the original test.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-micrometer-metrics</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk</artifactId>
