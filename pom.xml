@@ -102,7 +102,9 @@
         <junit.version>6.0.3</junit.version>
         <assertj.version>3.27.0</assertj.version>
         <mockito.version>5.14.2</mockito.version>
-        <testcontainers.version>2.0.5</testcontainers.version>
+        <!-- Pinned to the 1.x line. Testcontainers 2.x renamed every artifact (e.g.
+             `postgresql` -> `testcontainers-postgresql`); migrating is a separate PR. -->
+        <testcontainers.version>1.21.4</testcontainers.version>
         <postgresql.version>42.7.11</postgresql.version>
         <micrometer.version>1.14.2</micrometer.version>
         <spring-boot.version>3.4.1</spring-boot.version>
@@ -153,6 +155,24 @@
                 <artifactId>micrometer-core</artifactId>
                 <version>${micrometer.version}</version>
             </dependency>
+
+            <!-- Imported BOMs. Order matters: the first BOM to declare an artifact wins.
+                 testcontainers-bom MUST come before spring-boot-dependencies so the
+                 newer 1.21.x line wins over Spring Boot 3.4.1's pinned 1.20.4. -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -162,13 +182,6 @@
             </dependency>
 
             <!-- Test deps -->
-            <dependency>
-                <groupId>org.junit</groupId>
-                <artifactId>junit-bom</artifactId>
-                <version>${junit.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
             <dependency>
                 <groupId>org.assertj</groupId>
                 <artifactId>assertj-core</artifactId>
@@ -186,13 +199,6 @@
                 <artifactId>mockito-junit-jupiter</artifactId>
                 <version>${mockito.version}</version>
                 <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.testcontainers</groupId>
-                <artifactId>testcontainers-bom</artifactId>
-                <version>${testcontainers.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -336,6 +342,11 @@
                             </goals>
                             <configuration>
                                 <propertyName>surefire.argLine</propertyName>
+                                <!-- Unit + integration runs share a single jacoco.exec
+                                     so the bundle gate (`jacoco-check`) sees coverage
+                                     from both test phases. -->
+                                <destFile>${project.build.directory}/jacoco.exec</destFile>
+                                <append>true</append>
                             </configuration>
                         </execution>
                         <execution>
@@ -345,6 +356,8 @@
                             </goals>
                             <configuration>
                                 <propertyName>failsafe.argLine</propertyName>
+                                <destFile>${project.build.directory}/jacoco.exec</destFile>
+                                <append>true</append>
                             </configuration>
                         </execution>
                         <execution>
@@ -364,6 +377,13 @@
                         <targetClasses>
                             <param>io.github.lobofoltran.outbox.*</param>
                         </targetClasses>
+                        <!-- Integration tests (suffix IT) cannot run inside PIT's coverage
+                             minion — they need Testcontainers/Docker. PIT focuses on unit
+                             mutations against the production classes; JaCoCo (line+branch)
+                             is the source of truth that ITs covered everything. -->
+                        <excludedTestClasses>
+                            <excludedTestClass>*IT</excludedTestClass>
+                        </excludedTestClasses>
                         <outputFormats>
                             <outputFormat>HTML</outputFormat>
                             <outputFormat>XML</outputFormat>
@@ -404,6 +424,13 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
+            </plugin>
+            <!-- Failsafe is not part of Maven's default lifecycle bindings, so we activate
+                 it here for every child module. The IT executions are declared in the
+                 pluginManagement entry above. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

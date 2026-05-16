@@ -13,6 +13,13 @@
     <name>${project.groupId}:${project.artifactId}</name>
     <description>JDBC implementation of Outbox: writes events to PostgreSQL in the caller's transaction.</description>
 
+    <properties>
+        <!-- 100/100 because the real-PG integration tests exercise every branch
+             of the JDBC mapper without artifice (see ADR-0001 D10). -->
+        <coverage.line.minimum>1.00</coverage.line.minimum>
+        <coverage.branch.minimum>1.00</coverage.branch.minimum>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -23,6 +30,11 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>outbox-schema</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
