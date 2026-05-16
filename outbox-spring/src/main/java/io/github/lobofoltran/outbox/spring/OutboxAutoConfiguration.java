@@ -16,6 +16,7 @@ import io.github.lobofoltran.outbox.micrometer.MeteredOutbox;
 import io.github.lobofoltran.outbox.otel.TracedOutbox;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import org.springframework.beans.factory.ObjectProvider;
@@ -76,7 +77,11 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
  * operation: the metric is recorded inside the producer span.
  *
  * <p>Both decorators are opt-out via the nested {@link OutboxProperties.Metrics metrics.enabled}
- * and {@link OutboxProperties.Tracing tracing.enabled} switches.
+ * and {@link OutboxProperties.Tracing tracing.enabled} switches. The metrics decorator additionally
+ * requires a {@link MeterRegistry} bean; the tracing decorator is applied whenever the
+ * OpenTelemetry API is on the classpath and resolves the {@link OpenTelemetry} instance from a
+ * Spring bean if present, falling back to {@link GlobalOpenTelemetry#get()} (which is what {@code
+ * opentelemetry-sdk-extension-autoconfigure} and the OpenTelemetry Java Agent populate).
  *
  * <h2>Health</h2>
  *
@@ -213,11 +218,28 @@ public class OutboxAutoConfiguration {
 
     /**
      * Wraps every {@link Outbox} bean in the context with a {@link TracedOutbox} when the
-     * OpenTelemetry API is on the classpath and an {@link OpenTelemetry} bean is available.
+     * OpenTelemetry API is on the classpath.
+     *
+     * <p>The {@link OpenTelemetry} instance used to obtain the {@link Tracer} is resolved with the
+     * following precedence:
+     *
+     * <ol>
+     *   <li>a Spring-managed {@link OpenTelemetry} bean, if one is registered (explicit DI, test
+     *       fixtures, or the {@code opentelemetry-spring-boot-starter} instrumentation);
+     *   <li>otherwise, {@link GlobalOpenTelemetry#get()} — which is what {@code
+     *       opentelemetry-sdk-extension-autoconfigure} and the OpenTelemetry Java Agent populate.
+     *       If no SDK has been installed, this returns a no-op implementation and the {@link
+     *       TracedOutbox} decorator silently emits no spans.
+     * </ol>
+     *
+     * <p>This deliberately drops the previous {@code @ConditionalOnBean(OpenTelemetry.class)} gate,
+     * because a plain Spring Boot application pulling {@code opentelemetry-sdk-extension-auto
+     * configure} never publishes an {@link OpenTelemetry} bean — that extension only populates the
+     * global SDK singleton — and the condition could therefore never be satisfied. Adopters that
+     * want to disable tracing entirely should set {@code outbox.tracing.enabled=false}.
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass({Tracer.class, TracedOutbox.class})
-    @ConditionalOnBean(OpenTelemetry.class)
     @ConditionalOnProperty(
             prefix = "io.github.lobofoltran.outbox.tracing",
             name = "enabled",
@@ -272,9 +294,10 @@ public class OutboxAutoConfiguration {
                 }
                 synchronized (this) {
                     if (this.tracer == null) {
+                        OpenTelemetry openTelemetry =
+                                openTelemetryProvider.getIfAvailable(GlobalOpenTelemetry::get);
                         this.tracer =
-                                openTelemetryProvider
-                                        .getObject()
+                                openTelemetry
                                         .tracerBuilder(TRACER_INSTRUMENTATION_SCOPE_NAME)
                                         .setInstrumentationVersion(resolveInstrumentationVersion())
                                         .build();

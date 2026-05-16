@@ -14,10 +14,12 @@ import io.github.lobofoltran.outbox.Outbox;
 import io.github.lobofoltran.outbox.OutboxEvent;
 import io.github.lobofoltran.outbox.otel.TracedOutbox;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -45,13 +47,38 @@ class OutboxOtelSpringBootIT {
                         });
     }
 
+    @AfterEach
+    void resetGlobalOpenTelemetry() {
+        // Each test owns its OpenTelemetry resolution path; clear any global set during the test
+        // so we don't leak state across test methods or test classes.
+        GlobalOpenTelemetry.resetForTest();
+    }
+
     @Test
-    @DisplayName("leaves the Outbox bean bare when no OpenTelemetry bean is in the context")
-    void does_not_wrap_when_no_open_telemetry() {
+    @DisplayName(
+            "falls back to GlobalOpenTelemetry when no OpenTelemetry bean is registered"
+                    + " (covers the opentelemetry-sdk-extension-autoconfigure / Java Agent path)")
+    void falls_back_to_global_open_telemetry_when_no_bean() {
+        GlobalOpenTelemetry.set(stubOpenTelemetry());
         runner.run(
                 context -> {
                     assertThat(context).hasSingleBean(Outbox.class);
-                    assertThat(context.getBean(Outbox.class)).isNotInstanceOf(TracedOutbox.class);
+                    assertThat(context.getBean(Outbox.class)).isInstanceOf(TracedOutbox.class);
+                });
+    }
+
+    @Test
+    @DisplayName(
+            "still wraps with TracedOutbox when no bean and no global SDK are present"
+                    + " (GlobalOpenTelemetry.get() returns a no-op implementation)")
+    void wraps_with_noop_when_no_bean_and_no_global() {
+        // No OpenTelemetry bean, GlobalOpenTelemetry is reset (see @AfterEach contract): the
+        // decorator is still applied but emits no spans. This is the documented contract — the
+        // application opts out via tracing.enabled=false, not by withholding the bean.
+        runner.run(
+                context -> {
+                    assertThat(context).hasSingleBean(Outbox.class);
+                    assertThat(context.getBean(Outbox.class)).isInstanceOf(TracedOutbox.class);
                 });
     }
 
