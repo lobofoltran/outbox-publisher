@@ -13,12 +13,13 @@
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Public API of outbox-publisher: the Outbox interface, OutboxEvent record and exceptions.</description>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
+    <properties>
+        <!-- Contract module: org guidance bumps coverage to >=95% (see ADR-0001 D10). -->
+        <coverage.line.minimum>0.95</coverage.line.minimum>
+        <coverage.branch.minimum>0.95</coverage.branch.minimum>
+    </properties>
 
+    <dependencies>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
