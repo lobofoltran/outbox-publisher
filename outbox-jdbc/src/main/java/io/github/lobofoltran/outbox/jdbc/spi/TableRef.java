@@ -24,6 +24,13 @@ public record TableRef(String schema, String tableName) {
 
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
+    /**
+     * Canonical compact constructor: validates {@code tableName} (required) and {@code schema}
+     * (optional) against the strict identifier pattern.
+     *
+     * @throws NullPointerException if {@code tableName} is {@code null}.
+     * @throws IllegalArgumentException if either identifier does not match the allowlist pattern.
+     */
     public TableRef {
         Objects.requireNonNull(tableName, "tableName must not be null");
         requireIdentifier(tableName, "tableName");

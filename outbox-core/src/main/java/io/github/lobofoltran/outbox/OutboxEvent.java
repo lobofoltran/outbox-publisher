@@ -58,6 +58,14 @@ public record OutboxEvent(
     private static final int MAX_CONTENT_TYPE = 64;
     private static final int MAX_DESTINATION = 128;
 
+    /**
+     * Canonical compact constructor: validates every component (non-null, non-blank, max length)
+     * and makes a defensive copy of {@code payload} and {@code headers} so the resulting record is
+     * effectively immutable.
+     *
+     * @throws NullPointerException if any required component is {@code null}.
+     * @throws IllegalArgumentException if a string component is blank or exceeds its max length.
+     */
     public OutboxEvent {
         Objects.requireNonNull(aggregateType, "aggregateType must not be null");
         Objects.requireNonNull(aggregateId, "aggregateId must not be null");
@@ -97,6 +105,8 @@ public record OutboxEvent(
      *
      * <p>Callers that only need the size in bytes should prefer {@link #payloadSize()}, which
      * avoids cloning the underlying array.
+     *
+     * @return a fresh copy of the payload bytes.
      */
     @Override
     public byte[] payload() {
@@ -114,7 +124,11 @@ public record OutboxEvent(
         return payload.length;
     }
 
-    /** Returns the headers map. Already immutable; safe to return as-is. */
+    /**
+     * Returns the headers map. Already immutable; safe to return as-is.
+     *
+     * @return the immutable headers map.
+     */
     @Override
     public Map<String, String> headers() {
         return headers;
