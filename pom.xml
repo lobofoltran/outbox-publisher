@@ -86,7 +86,7 @@
         <spotless-maven-plugin.version>2.44.0</spotless-maven-plugin.version>
         <flatten-maven-plugin.version>1.7.0</flatten-maven-plugin.version>
         <pitest-maven.version>1.17.0</pitest-maven.version>
-        <pitest-junit5-plugin.version>1.2.1</pitest-junit5-plugin.version>
+        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
         <error-prone.version>2.36.0</error-prone.version>
         <checkstyle.version>10.20.2</checkstyle.version>
 
