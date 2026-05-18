@@ -106,7 +106,7 @@
         <checkstyle.version>13.4.2</checkstyle.version>
 
         <!-- Library versions (kept here so child poms reference ${...} only). -->
-        <slf4j.version>2.0.16</slf4j.version>
+        <slf4j.version>2.0.18</slf4j.version>
         <junit.version>6.0.3</junit.version>
         <assertj.version>3.27.0</assertj.version>
         <mockito.version>5.14.2</mockito.version>
